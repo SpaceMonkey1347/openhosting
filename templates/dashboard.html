@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sephosting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            '50': '#f6f6f7',
+                            '100': '#e1e3e6',
+                            '200': '#c2c5cb',
+                            '300': '#9ba0aa',
+                            '400': '#757b88',
+                            '500': '#5c626f',
+                            '600': '#484d58',
+                            '700': '#2d2d2d',
+                            '800': '#1e1e1e',
+                            '900': '#121212'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.css" integrity="sha512-WvVX1YO12zmsvTpUQV8s7ZU98DnkaAokcciMZJfnNWyNzm7//QRV61t4aEr0WdIa4pe854QHLTV302vH92FSMw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 sm:py-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 sm:mb-8">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">My Files</h1>
+                <p class="text-gray-400">Manage your secure cloud storage</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin_dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    Admin Panel
+                </a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-dark-700 hover:bg-dark-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dark-500">
+                    Logout
+                </a>
+            </div>
+        </div>
+
+        <!-- Storage Stats Card -->
+        <div class="bg-dark-800 rounded-lg p-4 sm:p-6 shadow-xl mb-6">
+            <h2 class="text-xl font-semibold mb-4">Storage Usage</h2>
+            <div class="flex flex-col md:flex-row md:items-end mb-4">
+                <div class="flex-grow mb-4 md:mb-0 md:mr-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>{{ used_storage }} used</span>
+                        <span>{{ total_storage }} total</span>
+                    </div>
+                    <div class="w-full bg-dark-700 rounded-full h-4">
+                        <div class="bg-blue-600 h-4 rounded-full" style="width: {{ storage_percent }}%"></div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-3xl font-bold">{{ storage_percent|round(1) }}%</p>
+                    <p class="text-sm text-gray-400">of storage used</p>
+                </div>
+            </div>
+        </div>
+
+        {% if get_flashed_messages() %}
+        <div class="mb-6">
+            {% for category, message in get_flashed_messages(with_categories=true) %}
+            <div class="p-4 mb-4 rounded-md {% if category == 'error' %}bg-red-900 text-red-200{% else %}bg-green-900 text-green-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- File Upload and Management -->
+        <div class="bg-dark-800 rounded-lg p-4 sm:p-6 shadow-xl">
+            <!-- Upload Form -->
+            <div class="mb-6 sm:mb-8">
+                <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
+                <div class="bg-dark-700 p-4 rounded-lg">
+                    <form action="{{ url_for('chunk_upload') }}" class="dropzone" id="chunkedUpload">
+                        <div class="fallback">
+                            <input name="file" type="file" multiple />
+                        </div>
+                    </form>
+                    <p class="text-sm text-gray-400 mt-2">Drag and drop your files or click to select (up to 100MB per file)</p>
+                </div>
+            </div>
+
+            <!-- Files List -->
+            <div>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <h2 class="text-xl font-semibold">My Files</h2>
+                    <p class="text-sm text-gray-400">{{ files|length }} files</p>
+                </div>
+                
+                {% if files %}
+                <div class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {% for file in files %}
+                    <div class="bg-dark-700 p-4 rounded-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
+                        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+                            <div class="flex-1 mb-2 sm:mb-0 sm:mr-2">
+                                <h3 class="font-medium mb-1 break-words hyphens-auto" title="{{ file.filename }}">{{ file.filename }}</h3>
+                                <p class="text-sm text-gray-400">{{ file.uploaded_at|datetime_format }}</p>
+                                <p class="text-sm text-gray-400">{{ (file.filesize / 1024 / 1024)|round(2) }} MB</p>
+                            </div>
+                            <div class="flex sm:flex-col items-start sm:items-end space-x-4 sm:space-x-0 sm:space-y-2">
+                                <a href="{{ url_for('download', file_id=file.id) }}" class="text-blue-400 hover:text-blue-300 text-sm">
+                                    Download
+                                </a>
+                                <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
+                                    <button type="submit" class="text-red-400 hover:text-red-300 text-sm"
+                                        onclick="return confirm('Are you sure you want to delete this file?')">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="bg-dark-700 rounded-lg p-8 sm:p-12 text-center">
+                    <div class="flex flex-col items-center">
+                        <svg class="w-12 h-12 sm:w-16 sm:h-16 text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <h3 class="text-xl font-medium mb-2">No files yet</h3>
+                        <p class="text-gray-400 mb-6">Upload your first file to get started</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 sm:mt-12 text-center text-gray-400 text-sm">
+            <p>{{ footer_text }} &copy; {{ now.year }}</p>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js" integrity="sha512-oQq8uth41D+gIH/NJvSJvVB85MFk1eWpMK6glnkg6I7EdMqC1XVkW7RxLheXwmFdG03qScCM7gKS/Cx3FYt7Tg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Dropzone configuration
+            Dropzone.autoDiscover = false;
+            
+            var myDropzone = new Dropzone("#chunkedUpload", {
+                url: "/chunk-upload",
+                maxFilesize: 100, // 100MB
+                acceptedFiles: "",
+                dictDefaultMessage: "Drop your files here or click to select",
+                dictFallbackMessage: "Your browser does not support drag and drop file uploads.",
+                dictFileTooBig: "File is too big ({{filesize}}MB). Max file size: {{maxFilesize}}MB. Cloudflare limits uploads to 100MB.",
+                dictInvalidFileType: "This file type is not allowed.",
+                dictResponseError: "Server error: {{statusCode}}",
+                dictCancelUpload: "Cancel",
+                dictUploadCanceled: "Upload canceled",
+                dictRemoveFile: "Remove",
+                dictMaxFilesExceeded: "You cannot upload any more files.",
+                init: function() {
+                    this.on("success", function(file, response) {
+                        var jsonResponse = JSON.parse(response);
+                        if (jsonResponse.success) {
+                            // Display success message
+                            var successMessage = document.createElement('div');
+                            successMessage.className = 'alert alert-success';
+                            successMessage.textContent = 'File uploaded successfully!';
+                            document.querySelector('.upload-section').appendChild(successMessage);
+                            
+                            // Reload page after 2 seconds to display the new file
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            // Display error message
+                            var errorMessage = document.createElement('div');
+                            errorMessage.className = 'alert alert-danger';
+                            errorMessage.textContent = 'Error: ' + jsonResponse.error;
+                            document.querySelector('.upload-section').appendChild(errorMessage);
+                        }
+                    });
+                    
+                    this.on("error", function(file, errorMessage) {
+                        // Display error message
+                        var errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-danger';
+                        
+                        if (typeof errorMessage === 'string') {
+                            errorDiv.textContent = 'Error: ' + errorMessage;
+                        } else if (errorMessage && errorMessage.error) {
+                            errorDiv.textContent = 'Error: ' + errorMessage.error;
+                        } else {
+                            errorDiv.textContent = 'An error occurred during upload';
+                        }
+                        
+                        document.querySelector('.upload-section').appendChild(errorDiv);
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

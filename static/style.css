@@ -1,0 +1,116 @@
+/* Custom animations and additional styles */
+
+/* Dark theme variables */
+:root {
+    --dark-bg-primary: #121212;
+    --dark-bg-secondary: #1e1e1e;
+    --dark-bg-tertiary: #2d2d2d;
+    --dark-text-primary: #e0e0e0;
+    --dark-text-secondary: #a0a0a0;
+    --dark-border: #333333;
+    --dark-accent: #3366cc;
+    --dark-accent-hover: #2a52a3;
+    
+    /* Responsive breakpoints */
+    --breakpoint-sm: 640px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 1024px;
+    --breakpoint-xl: 1280px;
+}
+
+/* Apply dark theme to html and body */
+html.dark, 
+html.dark body {
+    background-color: var(--dark-bg-primary);
+    color: var(--dark-text-primary);
+}
+
+/* Smooth fade in animation for cards */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Apply fade in animation to file cards */
+.grid > div {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Custom hover effect for buttons */
+button {
+    transition: transform 0.2s ease;
+}
+
+button:hover {
+    transform: scale(1.05);
+}
+
+/* Smooth transition for all interactive elements */
+* {
+    transition: background-color 0.2s ease,
+                color 0.2s ease,
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3d3d3d;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4d4d4d;
+}
+
+/* Enhanced dark mode form elements */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"] {
+    background-color: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-primary);
+}
+
+/* Dark mode shadows */
+.dark .shadow-xl {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+}
+
+/* Improved file name display for mobile */
+.break-words {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    -ms-word-break: break-all;
+}
+
+.hyphens-auto {
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    hyphens: auto;
+}
+
+/* Responsive adjustments for file cards */
+@media (max-width: 640px) {
+    .grid > div h3 {
+        max-width: 100%;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+    
+    /* Add a subtle visual separator between filename and buttons on mobile */
+    .flex-col > .flex-1 {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+}

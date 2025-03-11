@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Storage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            '50': '#f6f6f7',
+                            '100': '#e1e3e6',
+                            '200': '#c2c5cb',
+                            '300': '#9ba0aa',
+                            '400': '#757b88',
+                            '500': '#5c626f',
+                            '600': '#484d58',
+                            '700': '#2d2d2d',
+                            '800': '#1e1e1e',
+                            '900': '#121212'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">Cloud Storage</h1>
+            <p class="text-gray-400">Store and manage your files securely</p>
+        </header>
+
+        <main class="bg-dark-800 rounded-lg p-6 shadow-xl transition-all duration-300 hover:shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">My Files</h2>
+                <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="mb-6">
+                    <input type="file" name="file" class="hidden" id="fileInput" required>
+                    <label for="fileInput" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors duration-300">
+                        Choose File
+                    </label>
+                    <button type="submit" class="ml-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-300">
+                        Upload File
+                    </button>
+                </form>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {% if files %}
+                    {% for file in files %}
+                    <div class="bg-dark-700 p-4 rounded-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="font-medium mb-1">{{ file.filename }}</h3>
+                                <p class="text-sm text-gray-400">{{ file.uploaded_at.strftime('%d %b %Y %H:%M') }}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="{{ url_for('download', file_id=file.id) }}" class="text-blue-400 hover:text-blue-300">
+                                    Download
+                                </a>
+                                <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
+                                    <button type="submit" class="text-red-400 hover:text-red-300">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-400 text-center py-8 col-span-3">No files uploaded yet</p>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>
