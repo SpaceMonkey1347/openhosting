@@ -1,6 +1,6 @@
 # OpenHosting
 
-![OpenHosting Logo]https://cdn.discordapp.com/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=67d1c009&is=67d06e89&hm=1efbaa29d84b3c7f1184cd3883a4d77f86ccee35d57089085bd60b2779885a51&]
+![OpenHosting Logo](https://cdn.discordapp.com/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=67d1c009&is=67d06e89&hm=1efbaa29d84b3c7f1184cd3883a4d77f86ccee35d57089085bd60b2779885a51&)
 
 **OpenHosting** is a self-hosted, privacy-focused cloud storage solution that gives you complete control over your data. Built with Python and Flask, it provides a modern, secure platform for file storage and sharing without compromising your digital privacy.
 
