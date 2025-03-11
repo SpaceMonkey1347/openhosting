@@ -43,6 +43,17 @@
 - **Dark Mode**: Easy on the eyes with a dark-themed interface
 - **Mobile-Friendly**: Access your files from any device with a responsive design
 
+## 🖼️ Preview
+
+### Main Page
+![Main Page](https://cdn.discordapp.com/attachments/1186020574238081035/1349124172768612394/image.png?ex=67d1f54c&is=67d0a3cc&hm=ebe55b9791724c50cff739eea9a3de57cdb5000804883b17928c47d97a7a0608&)
+
+### User Files Interface
+![User Files Interface](https://cdn.discordapp.com/attachments/1186020574238081035/1349124334572011590/image.png?ex=67d1f572&is=67d0a3f2&hm=20a473f2584dccdf0a69f1c55d5a9854fbdbdbcf4c747e99afc7f3aed1746ec2&)
+
+### Admin Panel Preview
+![Admin Panel](https://media.discordapp.net/attachments/1186020574238081035/1349124709903503380/image.png?ex=67d1f5cc&is=67d0a44c&hm=6b5ca716870fb37038b81cdf445aacd7acc86b20d2694e08018a9ee6577d1c3d&=&format=webp&quality=lossless&width=3380&height=1151)
+
 ## 📋 Requirements
 
 - **Python 3.11** (required)
@@ -194,5 +205,4 @@ If you encounter any issues or have questions, please file an issue on the GitHu
 
 ---
 
-demo website: sephosting.xyz
 Made with ❤️ by the OpenHosting Team 
