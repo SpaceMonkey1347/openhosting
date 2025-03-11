@@ -87,7 +87,7 @@
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/openhosting.git
+   git clone https://github.com/Ciela2002/openhosting.git
    cd openhosting
    ```
 
