@@ -53,6 +53,12 @@
                             <a href="{{ url_for('admin_settings') }}" class="{% if request.endpoint == 'admin_settings' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md">
                                 Site Settings
                             </a>
+                            <a href="{{ url_for('admin_backups') }}" class="{% if request.endpoint == 'admin_backups' or request.endpoint == 'admin_create_backup' or request.endpoint == 'admin_backup_settings' or request.endpoint == 'admin_download_backup' or request.endpoint == 'admin_delete_backup' or request.endpoint == 'admin_restore_backup' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+                                Backups
+                            </a>
+                            <div class="mt-2 px-2 py-2 text-sm font-medium text-gray-400 border-t border-dark-600 pt-2">
+                                Application Version: 1.1.0
+                            </div>
                             <div class="pt-4 mt-4 border-t border-dark-600">
                                 <a href="{{ url_for('dashboard') }}" class="text-gray-100 hover:bg-dark-700 group flex items-center px-2 py-2 text-sm font-medium rounded-md">
                                     Back to My Files
@@ -93,6 +99,12 @@
                     <a href="{{ url_for('admin_settings') }}" class="{% if request.endpoint == 'admin_settings' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 block px-3 py-2 rounded-md text-base font-medium">
                         Site Settings
                     </a>
+                    <a href="{{ url_for('admin_backups') }}" class="{% if request.endpoint == 'admin_backups' or request.endpoint == 'admin_create_backup' or request.endpoint == 'admin_backup_settings' or request.endpoint == 'admin_download_backup' or request.endpoint == 'admin_delete_backup' or request.endpoint == 'admin_restore_backup' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 block px-3 py-2 rounded-md text-base font-medium">
+                        Backups
+                    </a>
+                    <div class="px-3 py-2 text-sm font-medium text-gray-400 border-t border-dark-600 mt-2 pt-2">
+                        Application Version: 1.1.0
+                    </div>
                     <a href="{{ url_for('dashboard') }}" class="text-gray-100 hover:bg-dark-700 block px-3 py-2 rounded-md text-base font-medium">
                         Back to My Files
                     </a>

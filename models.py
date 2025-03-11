@@ -31,6 +31,46 @@ class SiteSettings(db.Model):
         db.session.commit()
         return setting
 
+class BackupSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    backup_path = db.Column(db.String(512), nullable=False, default='backups')
+    last_backup = db.Column(db.DateTime, nullable=True)
+    auto_backup = db.Column(db.Boolean, default=False)
+    auto_backup_interval = db.Column(db.Integer, default=7)  # Days
+    include_user_files = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    @classmethod
+    def get_settings(cls):
+        """Get backup settings, create default if not exists"""
+        settings = cls.query.first()
+        if not settings:
+            settings = cls(backup_path='backups')
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+    
+    @classmethod
+    def update_last_backup(cls):
+        """Update the last backup timestamp"""
+        settings = cls.get_settings()
+        settings.last_backup = datetime.utcnow()
+        db.session.commit()
+        return settings
+
+class BackupHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    backup_path = db.Column(db.String(512), nullable=False)
+    backup_size = db.Column(db.BigInteger, default=0)  # Size in bytes
+    database_included = db.Column(db.Boolean, default=True)
+    user_files_included = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Relationship with user
+    user = db.relationship('User', backref='backups', lazy=True)
+
 class IconSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     icon_key = db.Column(db.String(100), unique=True, nullable=False)

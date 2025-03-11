@@ -18,6 +18,15 @@
 - **File Organization**: Browse, download, and manage your uploaded files
 - **Storage Quotas**: Set and enforce storage limits for each user
 
+### Backup System
+- **Database Backups**: Create complete backups of your database with one click
+- **User Files Backup**: Include user uploaded files in your backups
+- **Backup Management**: View, download, delete, and restore backups from the admin interface
+- **Backup Restoration**: Easily restore your system to a previous state using any backup
+- **Manual Backup Control**: Backups are only created when an administrator explicitly requests it
+- **Configurable Backup Path**: Set custom directory for storing backups
+- **Automatic Backups**: Schedule automatic backups at regular intervals (coming soon)
+
 ### Security
 - **Secure Authentication**: User authentication with password hashing
 - **Privacy-Focused**: No tracking, no data mining, just simple file storage
@@ -98,6 +107,16 @@ On first installation, the following default credentials are created:
 
 Default storage limits can be configured in the admin dashboard. The default is 5GB per user.
 
+### Backup Configuration
+
+1. Log in as an administrator
+2. Navigate to Admin > Backups
+3. Configure backup settings:
+   - Set backup directory path
+   - Choose whether to include user files in backups
+   - Enable/disable automatic backups (feature coming soon)
+   - Set backup interval (feature coming soon)
+
 ### Customizing the Interface
 
 1. Log in as an administrator
@@ -144,6 +163,34 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📞 Support
 
 If you encounter any issues or have questions, please file an issue on the GitHub repository.
+
+## 📋 Changelog
+
+### Version 1.1.0
+- **New Features**:
+  - Added "Delete All" button to user dashboard for bulk file deletion
+  - Added manual backup creation with clear user interface
+  - Added backup management system with download, restore, and delete capabilities
+  - Added icon customization in admin settings
+  - Added first login security for default admin account
+  - Added storage usage visualization
+  - Added backup history with detailed information
+
+- **Improvements**:
+  - Enhanced navigation in admin panel with consistent hover effects
+  - Improved backup page with clear instructions and manual creation button
+  - Added version display in admin panel (1.1.0)
+  - Improved mobile responsiveness throughout the application
+  - Enhanced security with session management improvements
+  - Optimized file upload process with chunking support
+
+- **Bug Fixes**:
+  - Fixed login redirect loop issue
+  - Fixed backup creation behavior to only create backups when explicitly requested
+  - Fixed user deletion form URL
+  - Fixed session handling to prevent premature session expiration
+  - Fixed admin navigation highlighting for backup-related pages
+  - Fixed various UI inconsistencies in dark mode
 
 ---
 
