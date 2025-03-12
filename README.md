@@ -67,7 +67,7 @@
 
 1. Clone the repository:
    ```
-   git clone https://github.com/Ciela2002/openhosting.git
+   git clone https://github.com/yourusername/openhosting.git
    cd openhosting
    ```
 
@@ -87,7 +87,7 @@
 
 1. Clone the repository:
    ```
-   git clone https://github.com/Ciela2002/openhosting.git
+   git clone https://github.com/yourusername/openhosting.git
    cd openhosting
    ```
 
@@ -177,6 +177,11 @@ If you encounter any issues or have questions, please file an issue on the GitHu
 
 ## 📋 Changelog
 
+### Version 1.1.1
+- Implemented UUIDs as primary keys for all database models
+- Enhanced security by preventing enumeration attacks
+- Fixed various bugs and improved stability
+
 ### Version 1.1.0
 - **New Features**:
   - Added "Delete All" button to user dashboard for bulk file deletion
@@ -190,7 +195,7 @@ If you encounter any issues or have questions, please file an issue on the GitHu
 - **Improvements**:
   - Enhanced navigation in admin panel with consistent hover effects
   - Improved backup page with clear instructions and manual creation button
-  - Added version display in admin panel (1.1.0)
+  - Added version display in admin panel (1.1.1)
   - Improved mobile responsiveness throughout the application
   - Enhanced security with session management improvements
   - Optimized file upload process with chunking support
@@ -202,6 +207,14 @@ If you encounter any issues or have questions, please file an issue on the GitHu
   - Fixed session handling to prevent premature session expiration
   - Fixed admin navigation highlighting for backup-related pages
   - Fixed various UI inconsistencies in dark mode
+
+---
+
+## Credits
+
+Special thanks to the following contributors:
+
+- **somethingLethal**: For suggesting the idea about implementation of UUIDs as primary keys, improving security and preventing enumeration attacks.
 
 ---
 

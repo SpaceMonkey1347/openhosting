@@ -38,7 +38,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Short sessio
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sephosting.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'user_uploads'
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
 
 # Ensure instance folder exists
 os.makedirs('instance', exist_ok=True)
@@ -105,7 +105,7 @@ def make_session_permanent():
 @login_manager.user_loader
 def load_user(user_id):
     # Try to load the user from the database
-    user = User.query.get(int(user_id))
+    user = User.query.get(user_id)
     
     # If user doesn't exist anymore, return None to force logout
     if user is None:
@@ -525,7 +525,7 @@ def chunk_upload():
         print(f"Error during upload: {str(e)}")
         return json.dumps({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
 
-@app.route('/download/<int:file_id>')
+@app.route('/download/<string:file_id>')
 @login_required
 def download(file_id):
     file = UserFile.query.get_or_404(file_id)
@@ -533,7 +533,7 @@ def download(file_id):
         abort(403)
     return send_file(file.filepath, as_attachment=True)
 
-@app.route('/delete/<int:file_id>', methods=['POST'])
+@app.route('/delete/<string:file_id>', methods=['POST'])
 @login_required
 def delete_file(file_id):
     file = UserFile.query.get_or_404(file_id)
@@ -652,7 +652,7 @@ def admin_users():
     
     return render_template('admin/users.html', user_stats=user_stats, footer_text=footer_text, now=datetime.utcnow())
 
-@app.route('/admin/user/<int:user_id>', methods=['GET', 'POST'])
+@app.route('/admin/user/<string:user_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def admin_edit_user(user_id):
@@ -689,7 +689,7 @@ def admin_edit_user(user_id):
         now=datetime.utcnow()
     )
 
-@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@app.route('/admin/user/<string:user_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def admin_delete_user(user_id):
@@ -728,7 +728,7 @@ def admin_files():
     
     return render_template('admin/files.html', files=files, footer_text=footer_text, now=datetime.utcnow())
 
-@app.route('/admin/files/delete/<int:file_id>', methods=['POST'])
+@app.route('/admin/files/delete/<string:file_id>', methods=['POST'])
 @login_required
 @admin_required
 def admin_delete_file(file_id):
@@ -949,7 +949,7 @@ def admin_create_backup():
     flash('Backup created successfully', 'success')
     return redirect(url_for('admin_backups'))
 
-@app.route('/admin/backups/download/<int:backup_id>')
+@app.route('/admin/backups/download/<string:backup_id>')
 @login_required
 @admin_required
 def admin_download_backup(backup_id):
@@ -964,7 +964,7 @@ def admin_download_backup(backup_id):
     # Send file
     return send_file(backup.backup_path, as_attachment=True, download_name=os.path.basename(backup.backup_path))
 
-@app.route('/admin/backups/delete/<int:backup_id>', methods=['POST'])
+@app.route('/admin/backups/delete/<string:backup_id>', methods=['POST'])
 @login_required
 @admin_required
 def admin_delete_backup(backup_id):
@@ -982,7 +982,7 @@ def admin_delete_backup(backup_id):
     flash('Backup deleted successfully', 'success')
     return redirect(url_for('admin_backups'))
 
-@app.route('/admin/backups/restore/<int:backup_id>', methods=['POST'])
+@app.route('/admin/backups/restore/<string:backup_id>', methods=['POST'])
 @login_required
 @admin_required
 def admin_restore_backup(backup_id):

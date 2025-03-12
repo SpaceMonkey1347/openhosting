@@ -2,11 +2,17 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
 import os
+import uuid
 
 db = SQLAlchemy()
 
-class SiteSettings(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+# Base model class that uses UUID as primary key
+class BaseModel(db.Model):
+    __abstract__ = True
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
+
+class SiteSettings(BaseModel):
+    # id is inherited from BaseModel
     setting_key = db.Column(db.String(100), unique=True, nullable=False)
     setting_value = db.Column(db.Text, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -31,8 +37,8 @@ class SiteSettings(db.Model):
         db.session.commit()
         return setting
 
-class BackupSettings(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class BackupSettings(BaseModel):
+    # id is inherited from BaseModel
     backup_path = db.Column(db.String(512), nullable=False, default='backups')
     last_backup = db.Column(db.DateTime, nullable=True)
     auto_backup = db.Column(db.Boolean, default=False)
@@ -59,20 +65,20 @@ class BackupSettings(db.Model):
         db.session.commit()
         return settings
 
-class BackupHistory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class BackupHistory(BaseModel):
+    # id is inherited from BaseModel
     backup_path = db.Column(db.String(512), nullable=False)
     backup_size = db.Column(db.BigInteger, default=0)  # Size in bytes
     database_included = db.Column(db.Boolean, default=True)
     user_files_included = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=True)
     
     # Relationship with user
     user = db.relationship('User', backref='backups', lazy=True)
 
-class IconSettings(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class IconSettings(BaseModel):
+    # id is inherited from BaseModel
     icon_key = db.Column(db.String(100), unique=True, nullable=False)
     icon_svg = db.Column(db.Text, nullable=False)  # Store SVG code
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -97,8 +103,8 @@ class IconSettings(db.Model):
         db.session.commit()
         return icon
 
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
+class User(BaseModel, UserMixin):
+    # id is inherited from BaseModel
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -126,12 +132,12 @@ class User(db.Model, UserMixin):
             return 100
         return min(100, (self.get_used_storage() / self.storage_limit) * 100)
 
-class UserFile(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class UserFile(BaseModel):
+    # id is inherited from BaseModel
     filename = db.Column(db.String(255), nullable=False)
     filepath = db.Column(db.String(512), nullable=False)
     filesize = db.Column(db.BigInteger, default=0)  # File size in bytes
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Removed direct relationship that causes conflict
