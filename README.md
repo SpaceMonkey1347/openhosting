@@ -44,7 +44,7 @@
 - **Mobile-Friendly**: Access your files from any device with a responsive design
 
 ## 🖼️ Preview
-
+(All text on thoes image is purely exemple, the zero knoladge encryption is just an exemple)
 ### Main Page
 ![Main Page](https://cdn.discordapp.com/attachments/1186020574238081035/1349124172768612394/image.png?ex=67d1f54c&is=67d0a3cc&hm=ebe55b9791724c50cff739eea9a3de57cdb5000804883b17928c47d97a7a0608&)
 
@@ -67,7 +67,7 @@
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/openhosting.git
+   git clone https://github.com/Ciela2002/openhosting.git
    cd openhosting
    ```
 
@@ -87,7 +87,7 @@
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/openhosting.git
+   git clone https://github.com/Ciela2002/openhosting.git
    cd openhosting
    ```
 
