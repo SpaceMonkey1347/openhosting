@@ -1,3 +1,6 @@
+### please use Python 3.11:)!
+
+
 ﻿# OpenHosting
 
 ![OpenHosting Logo](https://media.discordapp.net/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=68e93e09&is=68e7ec89&hm=256e7db71bad07b5608d8d1e9913a152a71003bf63acdd4da8e52381cfd35b91&=&format=webp&quality=lossless&width=2400&height=750)
