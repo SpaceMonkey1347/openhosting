@@ -1,6 +1,6 @@
 ﻿# OpenHosting
 
-![OpenHosting Logo]([https://cdn.discordapp.com/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=67d1c009&is=67d06e89&hm=1efbaa29d84b3c7f1184cd3883a4d77f86ccee35d57089085bd60b2779885a51&](https://media.discordapp.net/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=68e93e09&is=68e7ec89&hm=256e7db71bad07b5608d8d1e9913a152a71003bf63acdd4da8e52381cfd35b91&=&format=webp&quality=lossless&width=2400&height=750))
+![OpenHosting Logo](https://media.discordapp.net/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=68e93e09&is=68e7ec89&hm=256e7db71bad07b5608d8d1e9913a152a71003bf63acdd4da8e52381cfd35b91&=&format=webp&quality=lossless&width=2400&height=750)
 
 **OpenHosting** is a self-hosted, privacy-focused cloud storage solution that gives you complete control over your data. Built with Python and Flask, it provides a modern, secure platform for file storage and sharing without compromising your digital privacy.
 
@@ -46,14 +46,14 @@
 ## Preview
 (All text on thoes image is purely exemple, the zero knoladge encryption is just an exemple)
 ### Main Page
-![Main Page]([[https://cdn.discordapp.com/attachments/1186020574238081035/1349124172768612394/image.png?ex=67d1f54c&is=67d0a3cc&hm=ebe55b9791724c50cff739eea9a3de57cdb5000804883b17928c47d97a7a0608&](https://media.discordapp.net/attachments/1186020574238081035/1349124172768612394/image.png?ex=68e9734c&is=68e821cc&hm=d0befbdad049f8bd7dc2152667545682269a0908eb351555fa504c20454b6f09&=&format=webp&quality=lossless&width=2215&height=896)](https://media.discordapp.net/attachments/1186020574238081035/1349124172768612394/image.png?ex=68e9734c&is=68e821cc&hm=d0befbdad049f8bd7dc2152667545682269a0908eb351555fa504c20454b6f09&=&format=webp&quality=lossless&width=2215&height=896))
-![Main Page]()
+![Main Page](https://media.discordapp.net/attachments/1186020574238081035/1349124172768612394/image.png?ex=68e9734c&is=68e821cc&hm=d0befbdad049f8bd7dc2152667545682269a0908eb351555fa504c20454b6f09&=&format=webp&quality=lossless&width=2215&height=896)
+
 
 ### User Files Interface
-![User Files Interface](https://cdn.discordapp.com/attachments/1186020574238081035/1349124334572011590/image.png?ex=67d1f572&is=67d0a3f2&hm=20a473f2584dccdf0a69f1c55d5a9854fbdbdbcf4c747e99afc7f3aed1746ec2&)
+![User Files Interface](https://media.discordapp.net/attachments/1186020574238081035/1349124334572011590/image.png?ex=68e97372&is=68e821f2&hm=78d3fa1e654b712de4f97b010711a6e550e70649a542fd62fdabd1bb2adff082&=&format=webp&quality=lossless&width=2326&height=1290)
 
 ### Admin Panel Preview
-![Admin Panel](https://media.discordapp.net/attachments/1186020574238081035/1349124709903503380/image.png?ex=67d1f5cc&is=67d0a44c&hm=6b5ca716870fb37038b81cdf445aacd7acc86b20d2694e08018a9ee6577d1c3d&=&format=webp&quality=lossless&width=3380&height=1151)
+![Admin Panel](https://media.discordapp.net/attachments/1186020574238081035/1349124709903503380/image.png?ex=68e973cc&is=68e8224c&hm=8ed9679873b0c40c5af9d75acb5c03c86e76a4ca6e1f9fa0416cf876b98c44b7&=&format=webp&quality=lossless&width=3380&height=1151)
 
 ## Requirements
 
@@ -228,6 +228,7 @@ Special thanks to the following contributors:
 ---
 
 Made by the OpenHosting Team 
+
 
 
 
