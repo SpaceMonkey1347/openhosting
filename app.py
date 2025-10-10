@@ -1633,4 +1633,77 @@ def admin_revoke_share(share_id):
 create_default_admin()
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=83, debug=True)
+    import sys
+    
+    # Check if running with command line arguments
+    if len(sys.argv) > 1:
+        mode = sys.argv[1].lower()
+        if mode in ['production', 'prod', 'p']:
+            print("\n" + "="*50)
+            print("🚀 Starting OpenHosting in PRODUCTION mode")
+            print("="*50)
+            print("⚠️  Debug mode: OFF")
+            print("🌐 Server will be accessible on: http://0.0.0.0:83")
+            print("📝 Make sure to use a production WSGI server for deployment")
+            print("="*50 + "\n")
+            app.run(host='0.0.0.0', port=83, debug=False)
+        elif mode in ['development', 'dev', 'd']:
+            print("\n" + "="*50)
+            print("🔧 Starting OpenHosting in DEVELOPMENT mode")
+            print("="*50)
+            print("🐛 Debug mode: ON")
+            print("🌐 Server accessible on: http://127.0.0.1:83")
+            print("="*50 + "\n")
+            app.run(host='127.0.0.1', port=83, debug=True)
+        else:
+            print(f"❌ Unknown mode: {mode}")
+            print("Usage: python app.py [production|development]")
+            sys.exit(1)
+    else:
+        # Interactive mode selection
+        print("\n" + "="*50)
+        print("🚀 OpenHosting Server Configuration")
+        print("="*50)
+        print("\nSelect server mode:")
+        print("  1. Production (all interfaces, debug OFF)")
+        print("  2. Development (localhost only, debug ON)")
+        print("\n⚠️  For production deployment, consider using a WSGI server")
+        print("   like Gunicorn or uWSGI instead of the Flask dev server.")
+        print("="*50)
+        
+        while True:
+            try:
+                choice = input("\nEnter your choice (1 or 2): ").strip()
+                
+                if choice == '1':
+                    print("\n" + "="*50)
+                    print("�  Starting in PRODUCTION mode")
+                    print("="*50)
+                    print("⚠️  Debug mode: OFF")
+                    print("🌐 Server accessible on: http://0.0.0.0:83")
+                    print("📝 Recommended: Use Gunicorn or uWSGI for production")
+                    print("="*50 + "\n")
+                    app.run(host='0.0.0.0', port=83, debug=False)
+                    break
+                elif choice == '2':
+                    print("\n" + "="*50)
+                    print("🔧 Starting in DEVELOPMENT mode")
+                    print("="*50)
+                    print("🐛 Debug mode: ON")
+                    print("🌐 Server accessible on: http://127.0.0.1:83")
+                    print("="*50 + "\n")
+                    app.run(host='127.0.0.1', port=83, debug=True)
+                    break
+                else:
+                    print("❌ Invalid choice. Please enter 1 or 2.")
+            except KeyboardInterrupt:
+                print("\n\n👋 Server startup cancelled.")
+                sys.exit(0)
+            except EOFError:
+                # Non-interactive environment, default to development
+                print("\n⚠️  Non-interactive environment detected.")
+                print("🔧 Defaulting to DEVELOPMENT mode")
+                print("💡 Use: python app.py production (for production mode)")
+                print("="*50 + "\n")
+                app.run(host='127.0.0.1', port=83, debug=True)
+                break
