@@ -1,4 +1,4 @@
-{% extends "admin/layout.html" %}
+﻿{% extends "admin/layout.html" %}
 
 {% block title %}Admin Dashboard - OpenHosting{% endblock %}
 
@@ -16,7 +16,7 @@
                 <span class="text-sm text-gray-400">{{ admin_users }} admins</span>
             </div>
             <div class="mt-2">
-                <a href="{{ url_for('admin_users') }}" class="text-blue-400 hover:text-blue-300 text-sm">Manage Users →</a>
+                <a href="{{ url_for('admin_users') }}" class="text-blue-400 hover:text-blue-300 text-sm">Manage Users â†’</a>
             </div>
         </div>
         
@@ -28,7 +28,7 @@
                 <span class="text-sm text-gray-400">{{ total_storage | filesizeformat }}</span>
             </div>
             <div class="mt-2">
-                <a href="{{ url_for('admin_files') }}" class="text-blue-400 hover:text-blue-300 text-sm">Manage Files →</a>
+                <a href="{{ url_for('admin_files') }}" class="text-blue-400 hover:text-blue-300 text-sm">Manage Files â†’</a>
             </div>
         </div>
         
@@ -46,7 +46,7 @@
                 </span>
             </div>
             <div class="mt-2">
-                <a href="{{ url_for('admin_backups') }}" class="text-blue-400 hover:text-blue-300 text-sm">Manage Backups →</a>
+                <a href="{{ url_for('admin_backups') }}" class="text-blue-400 hover:text-blue-300 text-sm">Manage Backups â†’</a>
             </div>
         </div>
         
@@ -62,7 +62,7 @@
                 </span>
             </div>
             <div class="mt-2">
-                <a href="{{ url_for('admin_settings') }}" class="text-blue-400 hover:text-blue-300 text-sm">Site Settings →</a>
+                <a href="{{ url_for('admin_settings') }}" class="text-blue-400 hover:text-blue-300 text-sm">Site Settings â†’</a>
             </div>
         </div>
     </div>
@@ -96,6 +96,7 @@
             </a>
             
             <form action="{{ url_for('admin_create_backup') }}" method="POST" class="contents">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="bg-dark-700 hover:bg-dark-600 p-4 rounded-lg flex items-center text-left w-full">
                     <div class="mr-4 text-blue-400">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

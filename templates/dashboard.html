@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="bg-dark-900 text-gray-100 min-h-screen">
+    {% set csrf_token_value = csrf_token() %}
     <div class="container mx-auto px-4 py-6 sm:py-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 sm:mb-8">
             <div>
@@ -56,15 +57,15 @@
             <div class="flex flex-col md:flex-row md:items-end mb-4">
                 <div class="flex-grow mb-4 md:mb-0 md:mr-4">
                     <div class="flex justify-between text-sm text-gray-400 mb-1">
-                        <span>{{ used_storage|filesizeformat }} used</span>
-                        <span>{{ storage_limit|filesizeformat }} total</span>
+                        <span id="usedStorageDisplay">{{ used_storage|filesizeformat }} used</span>
+                        <span id="totalStorageDisplay">{{ storage_limit|filesizeformat }} total</span>
                     </div>
                     <div class="w-full bg-dark-700 rounded-full h-4">
-                        <div class="bg-blue-600 h-4 rounded-full" style="width: {{ storage_percentage }}%"></div>
+                        <div class="bg-blue-600 h-4 rounded-full" id="storageProgressBar" style="width: {{ storage_percentage }}%"></div>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-3xl font-bold">{{ storage_percentage|round(1) }}%</p>
+                    <p class="text-3xl font-bold" id="storagePercentageText">{{ storage_percentage|round(1) }}%</p>
                     <p class="text-sm text-gray-400">of storage used</p>
                 </div>
             </div>
@@ -85,8 +86,9 @@
             <!-- Upload Form -->
             <div class="mb-6 sm:mb-8">
                 <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
-                <div class="bg-dark-700 p-4 rounded-lg">
+                <div class="bg-dark-700 p-4 rounded-lg upload-section">
                     <form action="{{ url_for('chunk_upload') }}" class="dropzone" id="chunkedUpload">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
                         <div class="fallback">
                             <input name="file" type="file" multiple />
                         </div>
@@ -100,19 +102,17 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                     <h2 class="text-xl font-semibold">My Files</h2>
                     <div class="flex items-center mt-2 sm:mt-0">
-                        <p class="text-sm text-gray-400 mr-4">{{ files|length }} files</p>
-                        {% if files %}
-                        <form method="POST" action="{{ url_for('delete_all_files') }}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer TOUS vos fichiers? Cette action est irréversible.')">
+                        <p class="text-sm text-gray-400 mr-4" id="fileCount" data-count="{{ files|length }}">{{ files|length }} {{ 'file' if files|length == 1 else 'files' }}</p>
+                        <form method="POST" action="{{ url_for('delete_all_files') }}" id="deleteAllForm" class="{% if not files %}hidden {% endif %}" onsubmit="return confirm('Are you sure you want to delete ALL your files? This action cannot be undone.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
                             <button type="submit" class="inline-flex items-center px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                                 Delete All
                             </button>
                         </form>
-                        {% endif %}
                     </div>
                 </div>
-                
-                {% if files %}
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+
+                <div id="filesGrid" class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                     {% for file in files %}
                     <div class="bg-dark-700 p-4 rounded-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
                         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between">
@@ -126,6 +126,7 @@
                                     Download
                                 </a>
                                 <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
                                     <button type="submit" class="text-red-400 hover:text-red-300 text-sm"
                                         onclick="return confirm('Are you sure you want to delete this file?')">
                                         Delete
@@ -136,8 +137,9 @@
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="bg-dark-700 rounded-lg p-8 sm:p-12 text-center">
+
+                {% if not files %}
+                <div class="bg-dark-700 rounded-lg p-8 sm:p-12 text-center" id="noFilesMessage">
                     <div class="flex flex-col items-center">
                         <svg class="w-12 h-12 sm:w-16 sm:h-16 text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -162,6 +164,141 @@
             // Dropzone configuration
             Dropzone.autoDiscover = false;
             
+            const csrfToken = "{{ csrf_token_value }}";
+            const uploadSection = document.querySelector('.upload-section');
+            const filesGrid = document.getElementById('filesGrid');
+            const deleteAllForm = document.getElementById('deleteAllForm');
+            let initialNoFilesMessage = document.getElementById('noFilesMessage');
+            const fileCountElement = document.getElementById('fileCount');
+
+            function showUploadAlert(type, message) {
+                if (!uploadSection) {
+                    return;
+                }
+                uploadSection.querySelectorAll('[data-upload-alert]').forEach(function(alert) {
+                    alert.remove();
+                });
+
+                var alert = document.createElement('div');
+                alert.dataset.uploadAlert = 'true';
+                alert.className = 'p-3 mt-3 rounded-md ' + (type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200');
+                alert.textContent = message;
+                uploadSection.appendChild(alert);
+            }
+
+            function updateStorageDisplay(storage) {
+                if (!storage) {
+                    return;
+                }
+                var usedEl = document.getElementById('usedStorageDisplay');
+                var totalEl = document.getElementById('totalStorageDisplay');
+                var progressEl = document.getElementById('storageProgressBar');
+                var percentEl = document.getElementById('storagePercentageText');
+
+                if (usedEl && storage.used_display) {
+                    usedEl.textContent = storage.used_display + ' used';
+                }
+                if (totalEl && storage.limit_display) {
+                    totalEl.textContent = storage.limit_display + ' total';
+                }
+                if (progressEl && typeof storage.percentage === 'number') {
+                    var percentage = Math.max(0, Math.min(storage.percentage, 100));
+                    progressEl.style.width = percentage + '%';
+                }
+                if (percentEl && typeof storage.percentage === 'number') {
+                    percentEl.textContent = storage.percentage.toFixed(1) + '%';
+                }
+            }
+
+            function incrementFileCount() {
+                if (!fileCountElement) {
+                    return;
+                }
+                var current = parseInt(fileCountElement.dataset.count || '0', 10);
+                if (isNaN(current)) {
+                    var fallback = filesGrid ? filesGrid.querySelectorAll('[data-file-card]').length : 0;
+                    current = fallback;
+                }
+                var next = current + 1;
+                fileCountElement.dataset.count = String(next);
+                fileCountElement.textContent = next + ' ' + (next === 1 ? 'file' : 'files');
+            }
+
+            function buildFileCard(fileData) {
+                var card = document.createElement('div');
+                card.dataset.fileCard = 'true';
+                card.className = 'bg-dark-700 p-4 rounded-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg';
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'flex flex-col sm:flex-row sm:items-start sm:justify-between';
+                card.appendChild(wrapper);
+
+                var info = document.createElement('div');
+                info.className = 'flex-1 mb-2 sm:mb-0 sm:mr-2';
+                wrapper.appendChild(info);
+
+                var title = document.createElement('h3');
+                title.className = 'font-medium mb-1 break-words hyphens-auto';
+                title.textContent = fileData.filename;
+                title.title = fileData.filename;
+                info.appendChild(title);
+
+                var uploaded = document.createElement('p');
+                uploaded.className = 'text-sm text-gray-400';
+                uploaded.textContent = fileData.uploaded_at_display || '';
+                info.appendChild(uploaded);
+
+                var size = document.createElement('p');
+                size.className = 'text-sm text-gray-400';
+                var sizeValue = typeof fileData.filesize_mb === 'number' ? fileData.filesize_mb.toFixed(2) : '0.00';
+                size.textContent = sizeValue + ' MB';
+                info.appendChild(size);
+
+                var actions = document.createElement('div');
+                actions.className = 'flex sm:flex-col items-start sm:items-end space-x-4 sm:space-x-0 sm:space-y-2';
+                wrapper.appendChild(actions);
+
+                var downloadLink = document.createElement('a');
+                downloadLink.className = 'text-blue-400 hover:text-blue-300 text-sm';
+                downloadLink.href = fileData.download_url;
+                downloadLink.textContent = 'Download';
+                actions.appendChild(downloadLink);
+
+                var deleteForm = document.createElement('form');
+                deleteForm.method = 'POST';
+                deleteForm.action = fileData.delete_url;
+                deleteForm.addEventListener('submit', function(event) {
+                    if (!confirm('Are you sure you want to delete this file?')) {
+                        event.preventDefault();
+                    }
+                });
+                actions.appendChild(deleteForm);
+
+                var csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = csrfToken;
+                deleteForm.appendChild(csrfInput);
+
+                var deleteButton = document.createElement('button');
+                deleteButton.type = 'submit';
+                deleteButton.className = 'text-red-400 hover:text-red-300 text-sm';
+                deleteButton.textContent = 'Delete';
+                deleteForm.appendChild(deleteButton);
+
+                return card;
+            }
+
+            let existingDropzone = null;
+            try {
+                existingDropzone = Dropzone.forElement("#chunkedUpload");
+            } catch (error) {
+                existingDropzone = null;
+            }
+            if (existingDropzone) {
+                existingDropzone.destroy();
+            }
+
             var myDropzone = new Dropzone("#chunkedUpload", {
                 url: "/chunk-upload",
                 maxFilesize: 100, // 100MB
@@ -176,42 +313,71 @@
                 dictRemoveFile: "Remove",
                 dictMaxFilesExceeded: "You cannot upload any more files.",
                 init: function() {
+                    this.on("sending", function(file, xhr, formData) {
+                        formData.append("csrf_token", csrfToken);
+                        if (xhr && xhr.setRequestHeader) {
+                            xhr.setRequestHeader("X-CSRFToken", csrfToken);
+                        }
+                    });
+
                     this.on("success", function(file, response) {
-                        var jsonResponse = JSON.parse(response);
+                        var jsonResponse = response;
+                        if (typeof response === 'string') {
+                            try {
+                                jsonResponse = JSON.parse(response);
+                            } catch (e) {
+                                jsonResponse = { success: false, error: 'Unexpected server response' };
+                            }
+                        }
+
+                        console.log('Upload success response', jsonResponse);
+
                         if (jsonResponse.success) {
-                            // Display success message
-                            var successMessage = document.createElement('div');
-                            successMessage.className = 'alert alert-success';
-                            successMessage.textContent = 'File uploaded successfully!';
-                            document.querySelector('.upload-section').appendChild(successMessage);
-                            
-                            // Reload page after 2 seconds to display the new file
-                            setTimeout(function() {
-                                window.location.reload();
-                            }, 2000);
+                            showUploadAlert('success', jsonResponse.message || 'File uploaded successfully!');
+                            if (jsonResponse.file && filesGrid) {
+                                if (initialNoFilesMessage && initialNoFilesMessage.parentNode) {
+                                    initialNoFilesMessage.parentNode.removeChild(initialNoFilesMessage);
+                                    initialNoFilesMessage = null;
+                                }
+                                var existingNoFiles = document.getElementById('noFilesMessage');
+                                if (existingNoFiles && existingNoFiles.parentNode) {
+                                    existingNoFiles.parentNode.removeChild(existingNoFiles);
+                                }
+                                var card = buildFileCard(jsonResponse.file);
+                                if (typeof filesGrid.prepend === 'function') {
+                                    filesGrid.prepend(card);
+                                } else if (filesGrid.firstChild) {
+                                    filesGrid.insertBefore(card, filesGrid.firstChild);
+                                } else {
+                                    filesGrid.appendChild(card);
+                                }
+                                incrementFileCount();
+                                if (deleteAllForm) {
+                                    deleteAllForm.classList.remove('hidden');
+                                }
+                            }
+                            if (jsonResponse.storage) {
+                                updateStorageDisplay(jsonResponse.storage);
+                            }
                         } else {
-                            // Display error message
-                            var errorMessage = document.createElement('div');
-                            errorMessage.className = 'alert alert-danger';
-                            errorMessage.textContent = 'Error: ' + jsonResponse.error;
-                            document.querySelector('.upload-section').appendChild(errorMessage);
+                            var errorText = jsonResponse.error || 'An error occurred during upload';
+                            showUploadAlert('error', 'Error: ' + errorText);
                         }
                     });
                     
                     this.on("error", function(file, errorMessage) {
-                        // Display error message
-                        var errorDiv = document.createElement('div');
-                        errorDiv.className = 'alert alert-danger';
-                        
+                        var message = 'An error occurred during upload';
                         if (typeof errorMessage === 'string') {
-                            errorDiv.textContent = 'Error: ' + errorMessage;
+                            message = 'Error: ' + errorMessage;
                         } else if (errorMessage && errorMessage.error) {
-                            errorDiv.textContent = 'Error: ' + errorMessage.error;
-                        } else {
-                            errorDiv.textContent = 'An error occurred during upload';
+                            message = 'Error: ' + errorMessage.error;
                         }
-                        
-                        document.querySelector('.upload-section').appendChild(errorDiv);
+                        console.error('Upload error', errorMessage);
+                        showUploadAlert('error', message);
+                    });
+
+                    this.on("complete", function(file) {
+                        this.removeFile(file);
                     });
                 }
             });

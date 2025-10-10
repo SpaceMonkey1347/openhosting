@@ -10,6 +10,7 @@
     </div>
 
     <form method="POST" action="{{ url_for('admin_settings') }}" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- Home Page Settings -->
         <div class="bg-dark-700 rounded-lg p-4 sm:p-6">
             <h2 class="text-xl font-semibold mb-4 pb-2 border-b border-dark-600">Home Page</h2>
@@ -118,5 +119,21 @@
             </button>
         </div>
     </form>
+
+    <div class="bg-dark-700 rounded-lg p-4 sm:p-6 mt-6">
+        <h2 class="text-xl font-semibold mb-4 pb-2 border-b border-dark-600">Security Maintenance</h2>
+        <p class="text-sm text-gray-400 mb-4">
+            Rotate the application secret key to invalidate all active sessions. This is recommended after restoring backups or when setting up a new instance.
+        </p>
+        <form method="POST" action="{{ url_for('admin_rotate_secret') }}" onsubmit="return confirm('Rotate the secret key and log out all users? They will need to sign in again.');" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <span class="text-sm text-gray-400 flex-1">
+                Warning: Rotating the key logs out every user immediately.
+            </span>
+            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                Rotate Secret Key
+            </button>
+        </form>
+    </div>
 </div>
 {% endblock %} 

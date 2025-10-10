@@ -1,10 +1,10 @@
-# OpenHosting
+﻿# OpenHosting
 
 ![OpenHosting Logo](https://cdn.discordapp.com/attachments/1186020574238081035/1349066982502305973/openhosting-logo.png?ex=67d1c009&is=67d06e89&hm=1efbaa29d84b3c7f1184cd3883a4d77f86ccee35d57089085bd60b2779885a51&)
 
 **OpenHosting** is a self-hosted, privacy-focused cloud storage solution that gives you complete control over your data. Built with Python and Flask, it provides a modern, secure platform for file storage and sharing without compromising your digital privacy.
 
-## 🌟 Features
+## ðŸŒŸ Features
 
 ### User Management
 - **User Registration**: Allow users to create accounts with customizable storage limits
@@ -43,7 +43,7 @@
 - **Dark Mode**: Easy on the eyes with a dark-themed interface
 - **Mobile-Friendly**: Access your files from any device with a responsive design
 
-## 🖼️ Preview
+## ðŸ–¼ï¸ Preview
 (All text on thoes image is purely exemple, the zero knoladge encryption is just an exemple)
 ### Main Page
 ![Main Page](https://cdn.discordapp.com/attachments/1186020574238081035/1349124172768612394/image.png?ex=67d1f54c&is=67d0a3cc&hm=ebe55b9791724c50cff739eea9a3de57cdb5000804883b17928c47d97a7a0608&)
@@ -54,14 +54,14 @@
 ### Admin Panel Preview
 ![Admin Panel](https://media.discordapp.net/attachments/1186020574238081035/1349124709903503380/image.png?ex=67d1f5cc&is=67d0a44c&hm=6b5ca716870fb37038b81cdf445aacd7acc86b20d2694e08018a9ee6577d1c3d&=&format=webp&quality=lossless&width=3380&height=1151)
 
-## 📋 Requirements
+## ðŸ“‹ Requirements
 
 - **Python 3.11** (required)
 - Flask and its dependencies (see requirements.txt)
 - Modern web browser
 - SQLite (default) or other database supported by SQLAlchemy
 
-## 🚀 Installation
+## ðŸš€ Installation
 
 ### Windows
 
@@ -104,7 +104,7 @@
 
 4. Access OpenHosting at http://127.0.0.1:83
 
-## 👨‍💻 Default Admin Credentials
+## ðŸ‘¨â€ðŸ’» Default Admin Credentials
 
 On first installation, the following default credentials are created:
 - Username: `Admin`
@@ -112,7 +112,7 @@ On first installation, the following default credentials are created:
 
 **Important**: You will be required to change these credentials upon first login.
 
-## 🔧 Configuration
+## ðŸ”§ Configuration
 
 ### Storage Limits
 
@@ -135,7 +135,7 @@ Default storage limits can be configured in the admin dashboard. The default is 
 3. Customize site title, descriptions, feature texts, and icons
 4. Save your changes
 
-## 🛠️ Development
+## ðŸ› ï¸ Development
 
 ### Project Structure
 
@@ -150,7 +150,7 @@ Default storage limits can be configured in the admin dashboard. The default is 
 
 OpenHosting uses SQLite by default. The database file is created automatically on first run.
 
-## 📜 License
+## ðŸ“œ License
 
 OpenHosting is open source software licensed under a custom license:
 
@@ -161,7 +161,7 @@ OpenHosting is open source software licensed under a custom license:
 
 For commercial licensing inquiries, please contact the project maintainers.
 
-## 🤝 Contributing
+## ðŸ¤ Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -171,11 +171,19 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📞 Support
+## ðŸ“ž Support
 
 If you encounter any issues or have questions, please file an issue on the GitHub repository.
 
-## 📋 Changelog
+## ðŸ“‹ Changelog
+
+### Patch Notes – October 9, 2025
+- Hardened secret key lifecycle: auto-generated per-instance key with secure file permissions, administrative rotation workflow, and improved default admin onboarding.
+- Enabled comprehensive CSRF protection using Flask-WTF and propagated hidden tokens across every form and Dropzone upload request.
+- Restored strict session handling with idle timeouts, secure cookie defaults, and consistent logout/session cleanup helpers.
+- Strengthened authentication flows by enforcing stronger credential validation during registration and first-run admin credential updates, including optional key regeneration.
+- Secured file uploads end-to-end by constraining storage paths, validating content length, enforcing quotas in classic/chunked uploads, and standardizing JSON error responses.
+- Added admin tooling to rotate the Flask secret key after backup restores and clarified UI messaging about the impact on active sessions.
 
 ### Version 1.1.1
 - Implemented UUIDs as primary keys for all database models
@@ -218,4 +226,4 @@ Special thanks to the following contributors:
 
 ---
 
-Made with ❤️ by the OpenHosting Team 
+Made with â¤ï¸ by the OpenHosting Team 

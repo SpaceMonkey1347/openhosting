@@ -5,43 +5,73 @@ from models import db, User, UserFile, SiteSettings, IconSettings, BackupSetting
 from werkzeug.utils import secure_filename
 from functools import wraps
 import os
+import secrets
 import humanize
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
-import uuid
-import json
 from pathlib import Path
 import shutil
 import zipfile
 import time
+from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
+
+BASE_DIR = Path(__file__).resolve().parent
+SECRET_KEY_FILE = BASE_DIR / 'secret_key.txt'
 
 app = Flask(__name__)
 
-# Load secret key from file if it exists, otherwise use a default key
-secret_key_file = 'secret_key.txt'
-if os.path.exists(secret_key_file):
-    with open(secret_key_file, 'r') as f:
-        app.config['SECRET_KEY'] = f.read().strip()
-else:
-    app.config['SECRET_KEY'] = 'your_secret_key'
-    # Save the default key to file for consistency
-    with open(secret_key_file, 'w') as f:
-        f.write(app.config['SECRET_KEY'])
+def str_to_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+def load_or_create_secret_key():
+    """Load secret key from environment or file, otherwise generate one."""
+    env_key = os.getenv('FLASK_SECRET_KEY') or os.getenv('SECRET_KEY')
+    if env_key:
+        return env_key.strip()
+    if SECRET_KEY_FILE.exists():
+        return SECRET_KEY_FILE.read_text(encoding='utf-8').strip()
+    new_key = secrets.token_hex(32)
+    SECRET_KEY_FILE.write_text(new_key, encoding='utf-8')
+    try:
+        os.chmod(SECRET_KEY_FILE, 0o600)
+    except OSError:
+        # Best effort only; ignore if platform does not support chmod or permissions already strict
+        pass
+    return new_key
+
+def persist_secret_key(new_key):
+    """Persist a freshly generated secret key to disk and in-memory config."""
+    SECRET_KEY_FILE.write_text(new_key, encoding='utf-8')
+    try:
+        os.chmod(SECRET_KEY_FILE, 0o600)
+    except OSError:
+        pass
+    app.config['SECRET_KEY'] = new_key
+
+app.config['SECRET_KEY'] = load_or_create_secret_key()
 
 # Configure session security
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+is_development = str_to_bool(os.getenv('FLASK_DEBUG')) or os.getenv('FLASK_ENV') == 'development'
+app.config['SESSION_COOKIE_SECURE'] = str_to_bool(os.getenv('SESSION_COOKIE_SECURE'), default=not is_development)
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to cookies
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Restrict cookie sending to same site
+app.config['SESSION_COOKIE_SAMESITE'] = os.getenv('SESSION_COOKIE_SAMESITE', 'Strict')
+app.config['REMEMBER_COOKIE_SECURE'] = app.config['SESSION_COOKIE_SECURE']
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Short session lifetime
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 60 * 60 * 24  # 24 hours
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sephosting.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'user_uploads'
+app.config['UPLOAD_FOLDER'] = str((BASE_DIR / 'user_uploads').resolve())
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
 
 # Ensure instance folder exists
-os.makedirs('instance', exist_ok=True)
+os.makedirs(BASE_DIR / 'instance', exist_ok=True)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -50,8 +80,17 @@ login_manager.login_view = 'login'
 # Disable the redirect for unauthorized access to prevent redirect loops
 login_manager.login_message = None
 
+# Initialize CSRF protection
+csrf = CSRFProtect()
+csrf.init_app(app)
+
 # Initialize SQLAlchemy
 db.init_app(app)
+
+@app.context_processor
+def inject_csrf_token():
+    """Expose csrf_token() helper in templates without requiring FlaskForm."""
+    return {'csrf_token': lambda: generate_csrf()}
 
 # Function to set no-cache headers
 def set_no_cache_headers(response):
@@ -71,36 +110,33 @@ def no_cache(view_function):
 
 # Set session cookie settings for better security
 @app.before_request
-def make_session_permanent():
-    # EMERGENCY FIX: Disable session checks completely to avoid redirect loops
-    # We'll re-enable this once the login issues are resolved
-    return None
-    
-    # Skip session checks for static files, login page, and change_credentials page
-    if request.endpoint == 'login' or request.endpoint == 'static' or request.endpoint == 'change_credentials':
+def enforce_session_security():
+    """Maintain secure session settings and handle idle timeouts."""
+    if request.endpoint in {'static'} or request.endpoint is None:
         return None
-        
+
     session.permanent = True
-    # Set session lifetime to a short period (e.g., 30 minutes)
     app.permanent_session_lifetime = timedelta(minutes=30)
-    # Ensure session is secure
     session.modified = True
-    
-    # Check if user is authenticated but session is old
-    if current_user.is_authenticated:
-        # Get the last activity time from session
-        last_activity = session.get('last_activity')
-        now = datetime.utcnow()
-        
-        # If last_activity is not set or too old, force logout
-        if not last_activity or (now - datetime.fromtimestamp(last_activity)).total_seconds() > 1800:  # 30 minutes
-            logout_user()
-            session.clear()
-            flash('Your session has expired. Please log in again.', 'error')
-            return redirect(url_for('login'))
-            
-        # Update last activity time
-        session['last_activity'] = now.timestamp()
+
+    if not current_user.is_authenticated:
+        return None
+
+    last_activity = session.get('last_activity')
+    now_ts = int(time.time())
+
+    if last_activity and now_ts - int(last_activity) > 1800:
+        logout_user()
+        # Preserve flash messages by leaving _flashes intact
+        clear_session_except_flashes()
+
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({'success': False, 'error': 'Session expired'}), 401
+
+        flash('Your session has expired. Please log in again.', 'error')
+        return redirect(url_for('login'))
+
+    session['last_activity'] = now_ts
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -222,26 +258,21 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 @no_cache
 def login():
-    # Clear old flash messages at the beginning of the function
     session.pop('_flashes', None)
-    
-    # EMERGENCY FIX: Clear any existing sessions to break redirect loops
-    if 'login_emergency_fix' not in session:
-        session.clear()
-        session['login_emergency_fix'] = True
-        if current_user.is_authenticated:
-            logout_user()
-    
+
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
         remember = 'remember' in request.form
-        
+
         # Special case for default admin credentials
         if username.lower() == 'admin' and password == 'Admin':
             # Check if any admin exists
             admin_exists = User.query.filter_by(is_admin=True).first() is not None
-            
+
             if not admin_exists:
                 # No admin exists, create the default admin
                 print("Creating default administrator user via login...")
@@ -253,7 +284,7 @@ def login():
                     storage_limit=10 * 1024 * 1024 * 1024,  # 10GB
                     is_first_login=True
                 )
-                
+
                 # Make sure we save the user to the database
                 try:
                     db.session.add(admin)
@@ -262,89 +293,92 @@ def login():
                 except Exception as e:
                     db.session.rollback()
                     print(f"Error creating default admin: {str(e)}")
-                
+
                 # Log in the new admin
                 login_user(admin, remember=remember)
-                
+
                 # Set last activity time
-                session['last_activity'] = datetime.utcnow().timestamp()
-                
+                session['last_activity'] = int(time.time())
+
                 flash('Default administrator account created. Please change your credentials.', 'success')
                 return redirect(url_for('change_credentials'))
             elif User.query.filter(User.is_admin == True, User.is_first_login == False).first() is not None:
                 # Admin exists and has changed credentials
                 flash('Default administrator credentials have been changed. Please use the new credentials.', 'error')
                 return render_template('login.html', now=datetime.utcnow())
-        
+
         user = User.query.filter((User.username == username) | (User.email == username)).first()
-        
+
         if user and check_password_hash(user.password_hash, password):
             login_user(user, remember=remember)
-            
+
             # Set last activity time
-            session['last_activity'] = datetime.utcnow().timestamp()
-            
+            session['last_activity'] = int(time.time())
+
             # If this is the admin's first login, redirect to the credentials change page
             if user.is_first_login:
                 return redirect(url_for('change_credentials'))
-            
+
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'error')
-    
+
     return render_template('login.html', now=datetime.utcnow())
 
 @app.route('/change_credentials', methods=['GET', 'POST'])
 @login_required
 @no_cache
 def change_credentials():
-    # Debug information to help diagnose the issue
-    print(f"change_credentials: User {current_user.username}, is_first_login={current_user.is_first_login}")
-    
-    # EMERGENCY FIX: Always render the template for first login users
-    # This breaks any potential redirect loops
-    if current_user.is_first_login:
-        if request.method == 'POST':
-            new_username = request.form.get('new_username')
-            new_email = request.form.get('new_email')
-            new_password = request.form.get('new_password')
-            confirm_password = request.form.get('confirm_password')
-            
-            # Check that fields are not empty
-            if not new_username or not new_email or not new_password or not confirm_password:
-                flash('All fields are required', 'error')
-                return render_template('change_credentials.html', now=datetime.utcnow())
-            
-            # Check that passwords match
-            if new_password != confirm_password:
-                flash('Passwords do not match', 'error')
-                return render_template('change_credentials.html', now=datetime.utcnow())
-            
-            # Check that username is not already taken
-            if new_username != current_user.username and User.query.filter_by(username=new_username).first():
-                flash('Username is already taken', 'error')
-                return render_template('change_credentials.html', now=datetime.utcnow())
-            
-            # Check that email is not already taken
-            if new_email != current_user.email and User.query.filter_by(email=new_email).first():
-                flash('Email is already taken', 'error')
-                return render_template('change_credentials.html', now=datetime.utcnow())
-            
-            # Update user credentials
-            current_user.username = new_username
-            current_user.email = new_email
-            current_user.password_hash = generate_password_hash(new_password)
-            current_user.is_first_login = False
-            
-            db.session.commit()
-            
-            flash('Your credentials have been updated successfully', 'success')
-            return redirect(url_for('dashboard'))
-        
-        return render_template('change_credentials.html', now=datetime.utcnow())
-    else:
-        # If not first login, redirect to dashboard
+    if not current_user.is_first_login:
         return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        new_username = (request.form.get('new_username') or '').strip()
+        new_email = (request.form.get('new_email') or '').strip()
+        new_password = request.form.get('new_password') or ''
+        confirm_password = request.form.get('confirm_password') or ''
+        rotate_secret = request.form.get('rotate_secret_key') == 'on'
+
+        if not new_username or not new_email or not new_password or not confirm_password:
+            flash('All fields are required', 'error')
+            return render_template('change_credentials.html', now=datetime.utcnow())
+
+        if new_password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('change_credentials.html', now=datetime.utcnow())
+
+        if len(new_password) < 12:
+            flash('Password must be at least 12 characters long.', 'error')
+            return render_template('change_credentials.html', now=datetime.utcnow())
+
+        if '@' not in new_email:
+            flash('Please provide a valid email address.', 'error')
+            return render_template('change_credentials.html', now=datetime.utcnow())
+
+        if new_username != current_user.username and User.query.filter_by(username=new_username).first():
+            flash('Username is already taken', 'error')
+            return render_template('change_credentials.html', now=datetime.utcnow())
+
+        if new_email != current_user.email and User.query.filter_by(email=new_email).first():
+            flash('Email is already taken', 'error')
+            return render_template('change_credentials.html', now=datetime.utcnow())
+
+        current_user.username = new_username
+        current_user.email = new_email
+        current_user.password_hash = generate_password_hash(new_password)
+        current_user.is_first_login = False
+
+        db.session.commit()
+
+        if rotate_secret:
+            persist_secret_key(secrets.token_hex(32))
+            flash('Application secret key regenerated. All users will need to re-authenticate.', 'info')
+
+        session['last_activity'] = int(time.time())
+        flash('Your credentials have been updated successfully', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('change_credentials.html', now=datetime.utcnow())
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -352,10 +386,15 @@ def register():
     session.pop('_flashes', None)
     
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
+        username = (request.form.get('username') or '').strip()
+        email = (request.form.get('email') or '').strip()
+        password = request.form.get('password') or ''
+        confirm_password = request.form.get('confirm_password') or ''
+
+        if not username or not email or not password or not confirm_password:
+            flash('All fields are required', 'error')
+            return render_template('register.html', now=datetime.utcnow())
+
         # Prevent creating users with reserved usernames (case insensitive)
         # But only if an admin already exists
         if username.lower() == 'admin':
@@ -363,7 +402,7 @@ def register():
             if admin_exists:
                 flash('This username is reserved. Please choose another one.', 'error')
                 return render_template('register.html', now=datetime.utcnow())
-        
+
         # Check if the user already exists
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
@@ -374,6 +413,18 @@ def register():
         existing_email = User.query.filter_by(email=email).first()
         if existing_email:
             flash('Email already registered', 'error')
+            return render_template('register.html', now=datetime.utcnow())
+
+        if '@' not in email:
+            flash('Please provide a valid email address.', 'error')
+            return render_template('register.html', now=datetime.utcnow())
+
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html', now=datetime.utcnow())
+
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.', 'error')
             return render_template('register.html', now=datetime.utcnow())
         
         # Get default storage limit (in GB)
@@ -401,6 +452,8 @@ def register():
 @login_required
 def logout():
     logout_user()
+    clear_session_except_flashes()
+    flash('You have been logged out securely.', 'success')
     return redirect(url_for('home'))
 
 # Create upload folder if it doesn't exist
@@ -413,6 +466,42 @@ ALLOWED_EXTENSIONS = set()  # Accept all file types
 def allowed_file(filename):
     """Check if the file is allowed"""
     return True  # Accept all file types
+
+def safe_storage_path(*segments):
+    """Safely build a path inside the configured upload directory."""
+    base_path = Path(app.config['UPLOAD_FOLDER']).resolve()
+    target_path = base_path.joinpath(*segments).resolve()
+    if not str(target_path).startswith(str(base_path)):
+        raise ValueError('Unsafe storage path detected')
+    return target_path
+
+def is_safe_storage_path(path):
+    """Verify that a path stays within the upload directory."""
+    base_path = Path(app.config['UPLOAD_FOLDER']).resolve()
+    try:
+        Path(path).resolve().relative_to(base_path)
+        return True
+    except ValueError:
+        return False
+
+def determine_content_length(file_storage):
+    """Best-effort detection of the uploaded file size in bytes."""
+    if getattr(file_storage, 'content_length', None):
+        return int(file_storage.content_length)
+    stream = getattr(file_storage, 'stream', None)
+    if stream and hasattr(stream, 'tell') and hasattr(stream, 'seek'):
+        current_position = stream.tell()
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(current_position)
+        return int(size)
+    return 0
+
+def clear_session_except_flashes():
+    """Remove all session data except flashed messages."""
+    for key in list(session.keys()):
+        if key != '_flashes':
+            session.pop(key, None)
 
 @app.route('/upload', methods=['POST'])
 @login_required
@@ -429,32 +518,44 @@ def upload():
     if file and allowed_file(file.filename):
         # Check user's storage limit before uploading
         user_storage = current_user.get_used_storage()
-        file_size = file.content_length or 0  # Get file size from request
-        
-        if user_storage + file_size > current_user.storage_limit:
+        estimated_size = request.content_length or determine_content_length(file)
+
+        if estimated_size and user_storage + int(estimated_size) > current_user.storage_limit:
             flash('Storage limit exceeded', 'error')
             return redirect(url_for('dashboard'))
-            
+
         # Save the file
         filename = secure_filename(file.filename)
-        user_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(current_user.id))
-        os.makedirs(user_dir, exist_ok=True)
-        filepath = os.path.join(user_dir, filename)
-        file.save(filepath)
-        
+        try:
+            user_dir = safe_storage_path(str(current_user.id))
+            os.makedirs(user_dir, exist_ok=True)
+            filepath = safe_storage_path(str(current_user.id), filename)
+        except ValueError:
+            flash('Invalid upload path detected.', 'error')
+            return redirect(url_for('dashboard'))
+
+        file.save(str(filepath))
+
         # Create file record
         new_file = UserFile(
             filename=filename,
-            filepath=filepath,
+            filepath=str(filepath),
             user_id=current_user.id
         )
-        
+
         # Save file size
-        new_file.save_filesize()
-        
+        actual_size = new_file.save_filesize()
+
+        if user_storage + actual_size > current_user.storage_limit:
+            # Remove the file and abort the upload
+            if filepath.exists():
+                filepath.unlink()
+            flash('Storage limit exceeded', 'error')
+            return redirect(url_for('dashboard'))
+
         db.session.add(new_file)
         db.session.commit()
-        
+
         flash('File uploaded successfully', 'success')
         return redirect(url_for('dashboard'))
     
@@ -468,62 +569,98 @@ def chunk_upload():
     try:
         # Check if a file was sent
         if 'file' not in request.files:
-            return json.dumps({'success': False, 'error': 'No file sent'}), 400
+            return jsonify({'success': False, 'error': 'No file sent'}), 400
             
         file = request.files['file']
         
         # Check if the file has a name
         if file.filename == '':
-            return json.dumps({'success': False, 'error': 'No file selected'}), 400
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
             
         # Get the filename
         filename = secure_filename(file.filename)
         
         # Check if the file is allowed
         if not allowed_file(filename):
-            return json.dumps({'success': False, 'error': 'File type not allowed'}), 400
+            return jsonify({'success': False, 'error': 'File type not allowed'}), 400
             
         # Check storage limit
-        filesize = request.content_length
+        filesize = request.content_length or determine_content_length(file)
         user_storage = current_user.get_used_storage()
-        
-        if user_storage + filesize > current_user.storage_limit:
-            return json.dumps({'success': False, 'error': 'Storage limit exceeded'}), 400
-            
+
+        if filesize and user_storage + int(filesize) > current_user.storage_limit:
+            return jsonify({'success': False, 'error': 'Storage limit exceeded'}), 400
+
         # Create user folder if it doesn't exist
-        user_dir = os.path.join(os.path.abspath(app.config['UPLOAD_FOLDER']), str(current_user.id))
-        os.makedirs(user_dir, exist_ok=True)
-        
+        try:
+            user_dir = safe_storage_path(str(current_user.id))
+            os.makedirs(user_dir, exist_ok=True)
+            filepath = safe_storage_path(str(current_user.id), filename)
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid upload path detected'}), 400
+
         # Full file path
-        filepath = os.path.join(user_dir, filename)
-        
+        filepath = Path(filepath)
+
         # Save the file
         print(f"Saving file {filename} to {filepath}")
-        file.save(filepath)
-        
+        file.save(str(filepath))
+
         # Check that the file was saved correctly
-        if not os.path.exists(filepath):
-            return json.dumps({'success': False, 'error': 'Error saving the file'}), 500
-            
+        if not filepath.exists():
+            return jsonify({'success': False, 'error': 'Error saving the file'}), 500
+
         # Create database entry
         new_file = UserFile(
             filename=filename,
-            filepath=filepath,
+            filepath=str(filepath),
             user_id=current_user.id
         )
-        
+
         # Save file size
-        new_file.save_filesize()
-        
+        actual_size = new_file.save_filesize()
+
+        if user_storage + actual_size > current_user.storage_limit:
+            if filepath.exists():
+                filepath.unlink()
+            return jsonify({'success': False, 'error': 'Storage limit exceeded'}), 400
+
         db.session.add(new_file)
         db.session.commit()
         print(f"File {filename} recorded in database")
-        
-        return json.dumps({'success': True, 'message': 'File uploaded successfully'}), 200
+
+        updated_storage = current_user.get_used_storage()
+        storage_percentage = current_user.get_storage_percentage()
+
+        file_payload = {
+            'id': new_file.id,
+            'filename': new_file.filename,
+            'filesize_bytes': new_file.filesize,
+            'filesize_mb': round(new_file.filesize / (1024 * 1024), 2),
+            'download_url': url_for('download', file_id=new_file.id),
+            'delete_url': url_for('delete_file', file_id=new_file.id),
+            'uploaded_at_iso': new_file.uploaded_at.isoformat(),
+            'uploaded_at_display': new_file.uploaded_at.strftime('%B %d, %Y at %H:%M'),
+        }
+
+        storage_payload = {
+            'used_bytes': updated_storage,
+            'limit_bytes': current_user.storage_limit,
+            'used_display': humanize.naturalsize(updated_storage, binary=False),
+            'limit_display': humanize.naturalsize(current_user.storage_limit, binary=False),
+            'percentage': storage_percentage
+        }
+
+        return jsonify({
+            'success': True,
+            'message': 'File uploaded successfully',
+            'file': file_payload,
+            'storage': storage_payload
+        }), 200
         
     except Exception as e:
         print(f"Error during upload: {str(e)}")
-        return json.dumps({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
 
 @app.route('/download/<string:file_id>')
 @login_required
@@ -531,6 +668,13 @@ def download(file_id):
     file = UserFile.query.get_or_404(file_id)
     if file.user_id != current_user.id and not current_user.is_admin:
         abort(403)
+
+    if not is_safe_storage_path(file.filepath):
+        abort(400)
+
+    if not os.path.exists(file.filepath):
+        abort(404)
+
     return send_file(file.filepath, as_attachment=True)
 
 @app.route('/delete/<string:file_id>', methods=['POST'])
@@ -541,7 +685,7 @@ def delete_file(file_id):
         abort(403)
     
     # Delete the file from disk
-    if os.path.exists(file.filepath):
+    if is_safe_storage_path(file.filepath) and os.path.exists(file.filepath):
         os.remove(file.filepath)
     
     # Delete the file record from the database
@@ -563,7 +707,7 @@ def delete_all_files():
     
     # Delete each file from disk and database
     for file in files:
-        if os.path.exists(file.filepath):
+        if is_safe_storage_path(file.filepath) and os.path.exists(file.filepath):
             os.remove(file.filepath)
         db.session.delete(file)
     
@@ -703,7 +847,7 @@ def admin_delete_user(user_id):
     # Delete user's files from filesystem
     for file in user.files:
         try:
-            if os.path.exists(file.filepath):
+            if is_safe_storage_path(file.filepath) and os.path.exists(file.filepath):
                 os.remove(file.filepath)
         except Exception as e:
             flash(f'Error deleting file {file.filename}: {str(e)}', 'error')
@@ -736,7 +880,7 @@ def admin_delete_file(file_id):
     
     # Delete the file from the filesystem
     try:
-        if os.path.exists(file.filepath):
+        if is_safe_storage_path(file.filepath) and os.path.exists(file.filepath):
             os.remove(file.filepath)
     except Exception as e:
         flash(f'Error deleting file from filesystem: {str(e)}', 'error')
@@ -809,6 +953,18 @@ def admin_settings():
     footer_text = SiteSettings.get_setting('footer_text', 'Sephosting - Secure Cloud Storage')
     
     return render_template('admin/settings.html', settings=settings, icons=icons, footer_text=footer_text, now=datetime.utcnow())
+
+@app.route('/admin/security/rotate-secret', methods=['POST'])
+@login_required
+@admin_required
+def admin_rotate_secret():
+    """Allow administrators to regenerate the Flask secret key on demand."""
+    new_secret = secrets.token_hex(32)
+    persist_secret_key(new_secret)
+    flash('Application secret key rotated. All sessions must log in again.', 'success')
+    logout_user()
+    clear_session_except_flashes()
+    return redirect(url_for('login'))
 
 @app.route('/admin/backups')
 @login_required
@@ -1063,10 +1219,8 @@ def admin_restore_backup(backup_id):
         
         # Generate a new secret key to invalidate all existing sessions
         # This will force all users to log in again
-        with open('secret_key.txt', 'w') as f:
-            new_secret_key = os.urandom(24).hex()
-            f.write(new_secret_key)
-            app.config['SECRET_KEY'] = new_secret_key
+        new_secret_key = secrets.token_hex(32)
+        persist_secret_key(new_secret_key)
         
         # Clear all sessions
         session.clear()

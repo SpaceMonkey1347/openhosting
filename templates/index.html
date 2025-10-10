@@ -41,6 +41,7 @@
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">My Files</h2>
                 <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="mb-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="file" name="file" class="hidden" id="fileInput" required>
                     <label for="fileInput" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors duration-300">
                         Choose File
@@ -65,6 +66,7 @@
                                     Download
                                 </a>
                                 <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="text-red-400 hover:text-red-300">
                                         Delete
                                     </button>

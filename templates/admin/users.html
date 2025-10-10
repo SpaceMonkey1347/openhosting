@@ -64,7 +64,8 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
                         <a href="{{ url_for('admin_edit_user', user_id=stat.user.id) }}" class="text-blue-400 hover:text-blue-300 mr-3">Edit</a>
                         {% if not stat.user.is_admin %}
-                        <form method="POST" action="/admin/user/{{ stat.user.id }}/delete" class="inline">
+                        <form method="POST" action="{{ url_for('admin_delete_user', user_id=stat.user.id) }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-red-400 hover:text-red-300" onclick="return confirm('Are you sure you want to delete this user? All their files will be deleted too.')">
                                 Delete
                             </button>
@@ -105,7 +106,8 @@
             <div class="flex justify-end space-x-3 text-sm">
                 <a href="{{ url_for('admin_edit_user', user_id=stat.user.id) }}" class="text-blue-400 hover:text-blue-300">Edit</a>
                 {% if not stat.user.is_admin %}
-                <form method="POST" action="/admin/user/{{ stat.user.id }}/delete" class="inline">
+                <form method="POST" action="{{ url_for('admin_delete_user', user_id=stat.user.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="text-red-400 hover:text-red-300" onclick="return confirm('Are you sure you want to delete this user? All their files will be deleted too.')">
                         Delete
                     </button>
