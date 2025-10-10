@@ -16,9 +16,28 @@ IF %ERRORLEVEL% NEQ 0 (
     EXIT /B 1
 )
 
-:: Install required dependencies
-ECHO [INFO] Installing dependencies...
-pip install flask flask-sqlalchemy flask-login werkzeug humanize
+:: Check if requirements.txt exists
+IF NOT EXIST requirements.txt (
+    ECHO [ERROR] requirements.txt not found!
+    PAUSE
+    EXIT /B 1
+)
+
+:: Check if dependencies are installed
+ECHO [INFO] Checking dependencies...
+python -c "import flask, flask_sqlalchemy, flask_login, werkzeug, humanize, flask_wtf" >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO [INFO] Dependencies not found or incomplete. Installing from requirements.txt...
+    pip install -r requirements.txt
+    IF %ERRORLEVEL% NEQ 0 (
+        ECHO [ERROR] Failed to install dependencies. Please check your internet connection.
+        PAUSE
+        EXIT /B 1
+    )
+    ECHO [SUCCESS] Dependencies installed successfully!
+) ELSE (
+    ECHO [SUCCESS] All dependencies are already installed.
+)
 
 :: Check if app.py exists
 IF NOT EXIST app.py (

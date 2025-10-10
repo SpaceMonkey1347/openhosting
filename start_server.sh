@@ -18,9 +18,25 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Install required dependencies
-echo -e "${YELLOW}[INFO] Installing dependencies...${NC}"
-pip3 install flask flask-sqlalchemy flask-login werkzeug humanize || pip install flask flask-sqlalchemy flask-login werkzeug humanize
+# Check if requirements.txt exists
+if [ ! -f "requirements.txt" ]; then
+    echo -e "${RED}[ERROR] requirements.txt not found!${NC}"
+    exit 1
+fi
+
+# Check if dependencies are installed
+echo -e "${YELLOW}[INFO] Checking dependencies...${NC}"
+if python3 -c "import flask, flask_sqlalchemy, flask_login, werkzeug, humanize, flask_wtf" 2>/dev/null; then
+    echo -e "${GREEN}[SUCCESS] All dependencies are already installed.${NC}"
+else
+    echo -e "${YELLOW}[INFO] Dependencies not found or incomplete. Installing from requirements.txt...${NC}"
+    if pip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt 2>/dev/null; then
+        echo -e "${GREEN}[SUCCESS] Dependencies installed successfully!${NC}"
+    else
+        echo -e "${RED}[ERROR] Failed to install dependencies. Please check your internet connection.${NC}"
+        exit 1
+    fi
+fi
 
 # Check if app.py exists
 if [ ! -f "app.py" ]; then
