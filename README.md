@@ -215,7 +215,14 @@ If you encounter any issues or have questions, please file an issue on the GitHu
   - Fixed session handling to prevent premature session expiration
   - Fixed admin navigation highlighting for backup-related pages
   - Fixed various UI inconsistencies in dark mode
-
+  
+### Patch Notes – October 9, 2025
+- Hardened secret key lifecycle: auto-generated per-instance key with secure file permissions, administrative rotation workflow, and improved default admin onboarding.
+- Enabled comprehensive CSRF protection using Flask-WTF and propagated hidden tokens across every form and Dropzone upload request.
+- Restored strict session handling with idle timeouts, secure cookie defaults, and consistent logout/session cleanup helpers.
+- Strengthened authentication flows by enforcing stronger credential validation during registration and first-run admin credential updates, including optional key regeneration.
+- Secured file uploads end-to-end by constraining storage paths, validating content length, enforcing quotas in classic/chunked uploads, and standardizing JSON error responses.
+- Added admin tooling to rotate the Flask secret key after backup restores and clarified UI messaging about the impact on active sessions.
 ---
 
 ## Credits
@@ -227,3 +234,4 @@ Special thanks to the following contributors:
 ---
 
 Made with â¤ï¸ by the OpenHosting Team 
+
