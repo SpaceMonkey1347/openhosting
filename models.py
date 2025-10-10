@@ -156,3 +156,55 @@ class UserFile(BaseModel):
         except (OSError, IOError):
             pass
         return self.filesize
+
+class FileShare(BaseModel):
+    """Represents a shareable link for a file"""
+    # id is inherited from BaseModel
+    
+    file_id = db.Column(db.String(36), db.ForeignKey('user_file.id'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False, index=True)
+    
+    # Share token (unique, URL-safe, 32+ characters)
+    share_token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    
+    # Security settings
+    password_hash = db.Column(db.String(128), nullable=True)  # Optional password
+    
+    # Expiration settings
+    expires_at = db.Column(db.DateTime, nullable=True)  # None = never expires
+    
+    # Download limits
+    max_downloads = db.Column(db.Integer, nullable=True)  # None = unlimited
+    download_count = db.Column(db.Integer, default=0, nullable=False)
+    
+    # Status
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_accessed_at = db.Column(db.DateTime, nullable=True)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    revoked_by = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=True)
+    
+    # Relationships
+    file = db.relationship('UserFile', backref='shares', lazy='joined')
+    owner = db.relationship('User', foreign_keys=[user_id], backref='file_shares', lazy='joined')
+    revoker = db.relationship('User', foreign_keys=[revoked_by], lazy='joined')
+
+class ShareAccessLog(BaseModel):
+    """Logs access attempts to shared files for security and analytics"""
+    # id is inherited from BaseModel
+    
+    share_id = db.Column(db.String(36), db.ForeignKey('file_share.id'), nullable=False, index=True)
+    
+    # Access details
+    accessed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    ip_address = db.Column(db.String(45), nullable=True, index=True)  # IPv6 compatible
+    user_agent = db.Column(db.String(512), nullable=True)
+    
+    # Action performed
+    action = db.Column(db.String(50), nullable=False)  # 'view', 'download', 'password_fail'
+    success = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relationships
+    share = db.relationship('FileShare', backref='access_logs', lazy='joined')

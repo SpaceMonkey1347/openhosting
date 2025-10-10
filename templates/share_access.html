@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared File - OpenHosting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            '50': '#f6f6f7',
+                            '100': '#e1e3e6',
+                            '200': '#c2c5cb',
+                            '300': '#9ba0aa',
+                            '400': '#757b88',
+                            '500': '#5c626f',
+                            '600': '#484d58',
+                            '700': '#2d2d2d',
+                            '800': '#1e1e1e',
+                            '900': '#121212'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen flex items-center justify-center">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <div class="bg-dark-800 rounded-lg p-8 shadow-xl text-center">
+            <div class="mb-6">
+                <svg class="w-20 h-20 text-purple-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h1 class="text-3xl font-bold mb-2">{{ share.file.filename }}</h1>
+                <p class="text-gray-400">{{ (share.file.filesize / 1024 / 1024)|round(2) }} MB</p>
+                <p class="text-sm text-gray-500 mt-2">Uploaded {{ share.file.uploaded_at|datetime_format }}</p>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-gray-300 mb-4">Shared by a user on OpenHosting</p>
+                {% if share.max_downloads %}
+                <p class="text-sm text-gray-400">
+                    Downloads: {{ share.download_count }}/{{ share.max_downloads }} remaining
+                </p>
+                {% endif %}
+                {% if share.expires_at %}
+                <p class="text-sm text-gray-400">
+                    Expires: {{ share.expires_at|datetime_format }}
+                </p>
+                {% endif %}
+            </div>
+
+            <a href="{{ url_for('download_shared_file', token=token) }}" class="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-md text-lg font-medium">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Download File
+            </a>
+
+            <div class="mt-8 pt-6 border-t border-dark-700">
+                <p class="text-sm text-gray-500">Powered by OpenHosting</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, request, send_file, flash, abort, session, jsonify, make_response
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, UserFile, SiteSettings, IconSettings, BackupSettings, BackupHistory
+from models import db, User, UserFile, SiteSettings, IconSettings, BackupSettings, BackupHistory, FileShare, ShareAccessLog
 from werkzeug.utils import secure_filename
 from functools import wraps
 import os
@@ -163,6 +163,130 @@ def admin_required(f):
             
         return f(*args, **kwargs)
     return decorated_function
+
+# ============================================================================
+# File Sharing Helper Functions
+# ============================================================================
+
+def generate_share_token():
+    """
+    Generate a cryptographically secure share token
+    
+    Returns:
+        str: 32-character URL-safe token
+    """
+    return secrets.token_urlsafe(32)
+
+def calculate_expiration(expiration_option):
+    """
+    Calculate expiration datetime from option
+    
+    Parameters:
+        expiration_option (str): One of ['1h', '24h', '7d', '30d', 'never']
+    
+    Returns:
+        datetime or None: Expiration datetime or None for 'never'
+    """
+    if expiration_option == 'never':
+        return None
+    
+    expiration_map = {
+        '1h': timedelta(hours=1),
+        '24h': timedelta(hours=24),
+        '7d': timedelta(days=7),
+        '30d': timedelta(days=30)
+    }
+    
+    delta = expiration_map.get(expiration_option)
+    if delta:
+        return datetime.utcnow() + delta
+    return None
+
+def is_share_valid(share):
+    """
+    Check if a share is valid and accessible
+    
+    Parameters:
+        share (FileShare): FileShare object
+    
+    Returns:
+        tuple: (is_valid: bool, error_message: str)
+    """
+    if not share.is_active:
+        return False, "This share link has been revoked"
+    
+    if share.expires_at and datetime.utcnow() > share.expires_at:
+        return False, "This share link has expired"
+    
+    if share.max_downloads and share.download_count >= share.max_downloads:
+        return False, "Download limit reached for this file"
+    
+    if not share.file or not os.path.exists(share.file.filepath):
+        return False, "The shared file no longer exists"
+    
+    return True, None
+
+def verify_share_password(share, password):
+    """
+    Verify password for password-protected share
+    
+    Parameters:
+        share (FileShare): FileShare object
+        password (str): Plain text password to verify
+    
+    Returns:
+        bool: True if password matches
+    """
+    if not share.password_hash:
+        return True
+    return check_password_hash(share.password_hash, password)
+
+def log_share_access(share_id, action, success=True):
+    """
+    Log an access attempt to a shared file
+    
+    Parameters:
+        share_id (str): FileShare ID
+        action (str): 'view', 'download', 'password_fail'
+        success (bool): Whether the action succeeded
+    """
+    ip_address = request.remote_addr
+    user_agent = request.headers.get('User-Agent', '')[:512]
+    
+    access_log = ShareAccessLog(
+        share_id=share_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        action=action,
+        success=success
+    )
+    db.session.add(access_log)
+    db.session.commit()
+
+def check_rate_limit(share_id, ip_address):
+    """
+    Check if IP has exceeded rate limit for password attempts
+    
+    Parameters:
+        share_id (str): FileShare ID
+        ip_address (str): Client IP address
+    
+    Returns:
+        tuple: (is_allowed: bool, retry_after: int)
+    """
+    time_threshold = datetime.utcnow() - timedelta(minutes=15)
+    
+    failed_attempts = ShareAccessLog.query.filter(
+        ShareAccessLog.share_id == share_id,
+        ShareAccessLog.ip_address == ip_address,
+        ShareAccessLog.action == 'password_fail',
+        ShareAccessLog.accessed_at >= time_threshold
+    ).count()
+    
+    if failed_attempts >= 5:
+        return False, 15 * 60  # 15 minutes in seconds
+    
+    return True, 0
 
 # Replace the before_first_request decorator with an initialization function
 def create_default_admin():
@@ -683,6 +807,14 @@ def delete_file(file_id):
     file = UserFile.query.get_or_404(file_id)
     if file.user_id != current_user.id and not current_user.is_admin:
         abort(403)
+    
+    # Delete all associated share links and their access logs
+    shares = FileShare.query.filter_by(file_id=file_id).all()
+    for share in shares:
+        # Delete access logs first
+        ShareAccessLog.query.filter_by(share_id=share.id).delete()
+        # Delete the share
+        db.session.delete(share)
     
     # Delete the file from disk
     if is_safe_storage_path(file.filepath) and os.path.exists(file.filepath):
@@ -1239,6 +1371,263 @@ def datetime_format(value, format='%B %d, %Y at %H:%M'):
     if value is None:
         return ""
     return value.strftime(format)
+
+# ============================================================================
+# File Sharing Routes
+# ============================================================================
+
+@app.route('/share/create/<string:file_id>', methods=['POST'])
+@login_required
+def create_share(file_id):
+    """Create a new share link for a file"""
+    # Verify user owns the file
+    user_file = UserFile.query.filter_by(id=file_id, user_id=current_user.id).first()
+    if not user_file:
+        return jsonify({'error': 'File not found or access denied'}), 404
+    
+    # Check if file already has an active share
+    existing_share = FileShare.query.filter_by(
+        file_id=file_id,
+        is_active=True
+    ).first()
+    
+    if existing_share:
+        share_url = url_for('access_share', token=existing_share.share_token, _external=True)
+        return jsonify({
+            'success': True,
+            'share_url': share_url,
+            'share_id': existing_share.id,
+            'existing': True
+        })
+    
+    # Get parameters
+    password = request.form.get('password', '').strip()
+    expiration = request.form.get('expiration', 'never')
+    max_downloads = request.form.get('max_downloads', '').strip()
+    
+    # Generate unique share token
+    share_token = generate_share_token()
+    
+    # Create share
+    new_share = FileShare(
+        file_id=file_id,
+        user_id=current_user.id,
+        share_token=share_token,
+        password_hash=generate_password_hash(password) if password else None,
+        expires_at=calculate_expiration(expiration),
+        max_downloads=int(max_downloads) if max_downloads and max_downloads.isdigit() else None,
+        download_count=0,
+        is_active=True
+    )
+    
+    db.session.add(new_share)
+    db.session.commit()
+    
+    share_url = url_for('access_share', token=share_token, _external=True)
+    
+    return jsonify({
+        'success': True,
+        'share_url': share_url,
+        'share_id': new_share.id,
+        'existing': False
+    })
+
+@app.route('/share/revoke/<string:share_id>', methods=['POST'])
+@login_required
+def revoke_share(share_id):
+    """Revoke an existing share link"""
+    share = FileShare.query.filter_by(id=share_id, user_id=current_user.id).first()
+    if not share:
+        flash('Share not found or access denied', 'error')
+        return redirect(url_for('my_shares'))
+    
+    share.is_active = False
+    share.revoked_at = datetime.utcnow()
+    share.revoked_by = current_user.id
+    db.session.commit()
+    
+    flash('Share link revoked successfully', 'success')
+    return redirect(url_for('my_shares'))
+
+@app.route('/my-shares')
+@login_required
+@no_cache
+def my_shares():
+    """Display all active shares for the current user"""
+    shares = FileShare.query.filter_by(
+        user_id=current_user.id,
+        is_active=True
+    ).order_by(FileShare.created_at.desc()).all()
+    
+    footer_text = SiteSettings.get_setting('footer_text', 'OpenHosting - Secure Cloud Storage')
+    
+    return render_template(
+        'my_shares.html',
+        shares=shares,
+        footer_text=footer_text,
+        now=datetime.utcnow()
+    )
+
+@app.route('/share/details/<string:share_id>')
+@login_required
+def share_details(share_id):
+    """View detailed analytics for a specific share"""
+    share = FileShare.query.filter_by(id=share_id, user_id=current_user.id).first()
+    if not share:
+        return jsonify({'error': 'Share not found or access denied'}), 404
+    
+    # Get access logs
+    logs = ShareAccessLog.query.filter_by(share_id=share_id).order_by(
+        ShareAccessLog.accessed_at.desc()
+    ).limit(50).all()
+    
+    return jsonify({
+        'share_id': share.id,
+        'file_name': share.file.filename,
+        'created_at': share.created_at.isoformat(),
+        'expires_at': share.expires_at.isoformat() if share.expires_at else None,
+        'download_count': share.download_count,
+        'max_downloads': share.max_downloads,
+        'last_accessed_at': share.last_accessed_at.isoformat() if share.last_accessed_at else None,
+        'is_active': share.is_active,
+        'has_password': share.password_hash is not None,
+        'access_logs': [{
+            'accessed_at': log.accessed_at.isoformat(),
+            'ip_address': log.ip_address,
+            'action': log.action,
+            'success': log.success
+        } for log in logs]
+    })
+
+@app.route('/s/<string:token>', methods=['GET', 'POST'])
+def access_share(token):
+    """Access a shared file via token"""
+    share = FileShare.query.filter_by(share_token=token).first()
+    
+    if not share:
+        log_share_access(None, 'view', success=False)
+        return render_template('share_error.html', 
+                             error_title='Invalid Link',
+                             error_message='This share link is invalid or has been removed'), 404
+    
+    # Validate share
+    is_valid, error_message = is_share_valid(share)
+    if not is_valid:
+        log_share_access(share.id, 'view', success=False)
+        
+        if 'expired' in error_message.lower():
+            status_code = 410
+        elif 'limit' in error_message.lower():
+            status_code = 403
+        else:
+            status_code = 404
+        
+        return render_template('share_error.html',
+                             error_title='Access Denied',
+                             error_message=error_message), status_code
+    
+    # Handle password-protected shares
+    if share.password_hash:
+        if request.method == 'POST':
+            password = request.form.get('password', '')
+            
+            # Check rate limit
+            is_allowed, retry_after = check_rate_limit(share.id, request.remote_addr)
+            if not is_allowed:
+                return render_template('share_error.html',
+                                     error_title='Too Many Attempts',
+                                     error_message=f'Too many failed attempts. Please try again in {retry_after // 60} minutes'), 429
+            
+            if verify_share_password(share, password):
+                session[f'share_password_verified_{share.id}'] = True
+                log_share_access(share.id, 'view', success=True)
+                share.last_accessed_at = datetime.utcnow()
+                db.session.commit()
+            else:
+                log_share_access(share.id, 'password_fail', success=False)
+                flash('Incorrect password. Please try again.', 'error')
+                return render_template('share_password.html', share=share, token=token)
+        else:
+            # Check if password already verified in session
+            if not session.get(f'share_password_verified_{share.id}'):
+                return render_template('share_password.html', share=share, token=token)
+    
+    # Log successful view
+    log_share_access(share.id, 'view', success=True)
+    share.last_accessed_at = datetime.utcnow()
+    db.session.commit()
+    
+    return render_template('share_access.html', share=share, token=token)
+
+@app.route('/s/<string:token>/download')
+def download_shared_file(token):
+    """Download a shared file"""
+    share = FileShare.query.filter_by(share_token=token).first()
+    
+    if not share:
+        return render_template('share_error.html',
+                             error_title='Invalid Link',
+                             error_message='This share link is invalid or has been removed'), 404
+    
+    # Validate share
+    is_valid, error_message = is_share_valid(share)
+    if not is_valid:
+        log_share_access(share.id, 'download', success=False)
+        return render_template('share_error.html',
+                             error_title='Access Denied',
+                             error_message=error_message), 403
+    
+    # Check password verification
+    if share.password_hash and not session.get(f'share_password_verified_{share.id}'):
+        return redirect(url_for('access_share', token=token))
+    
+    # Increment download counter
+    share.download_count += 1
+    share.last_accessed_at = datetime.utcnow()
+    db.session.commit()
+    
+    # Log download
+    log_share_access(share.id, 'download', success=True)
+    
+    # Send file
+    return send_file(share.file.filepath, as_attachment=True, download_name=share.file.filename)
+
+@app.route('/admin/shares')
+@login_required
+@admin_required
+@no_cache
+def admin_shares():
+    """View all shares across the platform (admin only)"""
+    shares = FileShare.query.filter_by(is_active=True).order_by(
+        FileShare.created_at.desc()
+    ).all()
+    
+    footer_text = SiteSettings.get_setting('footer_text', 'OpenHosting - Secure Cloud Storage')
+    
+    return render_template(
+        'admin/shares.html',
+        shares=shares,
+        footer_text=footer_text,
+        now=datetime.utcnow()
+    )
+
+@app.route('/admin/share/revoke/<string:share_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_revoke_share(share_id):
+    """Admin revoke any share link"""
+    share = FileShare.query.filter_by(id=share_id).first()
+    if not share:
+        flash('Share not found', 'error')
+        return redirect(url_for('admin_shares'))
+    
+    share.is_active = False
+    share.revoked_at = datetime.utcnow()
+    share.revoked_by = current_user.id
+    db.session.commit()
+    
+    flash(f'Share link for "{share.file.filename}" revoked successfully', 'success')
+    return redirect(url_for('admin_shares'))
 
 # Call the initialization function before starting the application
 create_default_admin()

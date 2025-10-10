@@ -40,6 +40,9 @@
                 <p class="text-gray-400">Manage your secure cloud storage</p>
             </div>
             <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+                <a href="{{ url_for('my_shares') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-dark-700 hover:bg-dark-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dark-500">
+                    My Shares
+                </a>
                 {% if current_user.is_admin %}
                 <a href="{{ url_for('admin_dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
                     Admin Panel
@@ -122,9 +125,21 @@
                                 <p class="text-sm text-gray-400">{{ (file.filesize / 1024 / 1024)|round(2) }} MB</p>
                             </div>
                             <div class="flex sm:flex-col items-start sm:items-end space-x-4 sm:space-x-0 sm:space-y-2">
+                                {% set has_active_share = file.shares|selectattr('is_active', 'equalto', true)|list|length > 0 %}
+                                {% if has_active_share %}
+                                <span class="text-green-400 text-sm flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                    </svg>
+                                    Shared
+                                </span>
+                                {% endif %}
                                 <a href="{{ url_for('download', file_id=file.id) }}" class="text-blue-400 hover:text-blue-300 text-sm">
                                     Download
                                 </a>
+                                <button type="button" class="text-purple-400 hover:text-purple-300 text-sm share-btn" data-file-id="{{ file.id }}" data-file-name="{{ file.filename }}">
+                                    Share
+                                </button>
                                 <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
                                     <button type="submit" class="text-red-400 hover:text-red-300 text-sm"
@@ -156,6 +171,93 @@
         <footer class="mt-8 sm:mt-12 text-center text-gray-400 text-sm">
             <p>{{ footer_text }} &copy; {{ now.year }}</p>
         </footer>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-dark-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Share "<span id="shareFileName"></span>"</h3>
+                <button type="button" class="text-gray-400 hover:text-white" onclick="closeShareModal()">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="shareForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                <input type="hidden" id="shareFileId" name="file_id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">🔒 Password Protection (Optional)</label>
+                    <input type="password" name="password" class="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Enter password...">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">⏰ Expiration</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="expiration" value="1h" class="mr-2">
+                            <span class="text-sm">1 hour</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="expiration" value="24h" class="mr-2">
+                            <span class="text-sm">24 hours</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="expiration" value="7d" class="mr-2">
+                            <span class="text-sm">7 days</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="expiration" value="30d" class="mr-2">
+                            <span class="text-sm">30 days</span>
+                        </label>
+                        <label class="flex items-center col-span-2">
+                            <input type="radio" name="expiration" value="never" class="mr-2" checked>
+                            <span class="text-sm">Never</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">📊 Download Limit (Optional)</label>
+                    <input type="number" name="max_downloads" class="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Unlimited" min="1">
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-md" onclick="closeShareModal()">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md">Create Share Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Share Success Modal -->
+    <div id="shareSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-dark-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">✓ Share Link Created</h3>
+                <button type="button" class="text-gray-400 hover:text-white" onclick="closeShareSuccessModal()">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <p class="text-green-400 mb-4">Your file is now shared!</p>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Share Link:</label>
+                <div class="flex">
+                    <input type="text" id="shareUrl" readonly class="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-l-md focus:outline-none" value="">
+                    <button type="button" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-r-md" onclick="copyShareLink()">
+                        📋 Copy
+                    </button>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <a href="{{ url_for('my_shares') }}" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-md inline-block">View My Shares</a>
+                <button type="button" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md" onclick="closeShareSuccessModal()">Close</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js" integrity="sha512-oQq8uth41D+gIH/NJvSJvVB85MFk1eWpMK6glnkg6I7EdMqC1XVkW7RxLheXwmFdG03qScCM7gKS/Cx3FYt7Tg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -380,6 +482,71 @@
                         this.removeFile(file);
                     });
                 }
+            });
+
+            // Share functionality
+            window.openShareModal = function(fileId, fileName) {
+                document.getElementById('shareFileId').value = fileId;
+                document.getElementById('shareFileName').textContent = fileName;
+                document.getElementById('shareModal').classList.remove('hidden');
+                document.getElementById('shareModal').classList.add('flex');
+            };
+
+            window.closeShareModal = function() {
+                document.getElementById('shareModal').classList.add('hidden');
+                document.getElementById('shareModal').classList.remove('flex');
+                document.getElementById('shareForm').reset();
+            };
+
+            window.closeShareSuccessModal = function() {
+                document.getElementById('shareSuccessModal').classList.add('hidden');
+                document.getElementById('shareSuccessModal').classList.remove('flex');
+            };
+
+            window.copyShareLink = function() {
+                const shareUrlInput = document.getElementById('shareUrl');
+                shareUrlInput.select();
+                document.execCommand('copy');
+                alert('Link copied to clipboard!');
+            };
+
+            // Handle share button clicks
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('share-btn')) {
+                    const fileId = e.target.dataset.fileId;
+                    const fileName = e.target.dataset.fileName;
+                    openShareModal(fileId, fileName);
+                }
+            });
+
+            // Handle share form submission
+            document.getElementById('shareForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const fileId = document.getElementById('shareFileId').value;
+                const formData = new FormData(this);
+                
+                fetch('/share/create/' + fileId, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        closeShareModal();
+                        document.getElementById('shareUrl').value = data.share_url;
+                        document.getElementById('shareSuccessModal').classList.remove('hidden');
+                        document.getElementById('shareSuccessModal').classList.add('flex');
+                        
+                        // Update the file card to show shared indicator
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to create share link'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while creating the share link');
+                });
             });
         });
     </script>

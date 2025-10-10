@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Shares - Sephosting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            '50': '#f6f6f7',
+                            '100': '#e1e3e6',
+                            '200': '#c2c5cb',
+                            '300': '#9ba0aa',
+                            '400': '#757b88',
+                            '500': '#5c626f',
+                            '600': '#484d58',
+                            '700': '#2d2d2d',
+                            '800': '#1e1e1e',
+                            '900': '#121212'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+    {% set csrf_token_value = csrf_token() %}
+    <div class="container mx-auto px-4 py-6 sm:py-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 sm:mb-8">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">My Shared Links</h1>
+                <p class="text-gray-400">Manage your active file shares</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+                <a href="{{ url_for('dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-dark-700 hover:bg-dark-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dark-500">
+                    Back to Files
+                </a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin_dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    Admin Panel
+                </a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-dark-700 hover:bg-dark-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dark-500">
+                    Logout
+                </a>
+            </div>
+        </div>
+
+        {% if get_flashed_messages() %}
+        <div class="mb-6">
+            {% for category, message in get_flashed_messages(with_categories=true) %}
+            <div class="p-4 mb-4 rounded-md {% if category == 'error' %}bg-red-900 text-red-200{% else %}bg-green-900 text-green-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="bg-dark-800 rounded-lg p-4 sm:p-6 shadow-xl">
+            {% if shares %}
+            <div class="space-y-4">
+                {% for share in shares %}
+                <div class="bg-dark-700 p-4 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-start md:justify-between">
+                        <div class="flex-1 mb-4 md:mb-0">
+                            <div class="flex items-center mb-2">
+                                <h3 class="font-medium text-lg mr-2">📄 {{ share.file.filename }}</h3>
+                                {% if share.password_hash %}
+                                <span class="text-xs bg-purple-900 text-purple-200 px-2 py-1 rounded">🔒 Protected</span>
+                                {% endif %}
+                                <span class="text-xs bg-green-900 text-green-200 px-2 py-1 rounded ml-2">🔗 Active</span>
+                            </div>
+                            <div class="text-sm text-gray-400 space-y-1">
+                                <p>Created: {{ share.created_at|datetime_format }}</p>
+                                <p>Expires: {% if share.expires_at %}{{ share.expires_at|datetime_format }}{% else %}Never{% endif %}</p>
+                                <p>Downloads: {{ share.download_count }}{% if share.max_downloads %}/{{ share.max_downloads }}{% else %}/∞{% endif %}</p>
+                                {% if share.last_accessed_at %}
+                                <p>Last accessed: {{ share.last_accessed_at|datetime_format }}</p>
+                                {% else %}
+                                <p>Last accessed: Never</p>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <input type="text" readonly value="{{ url_for('access_share', token=share.share_token, _external=True) }}" class="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-md text-sm" id="share-url-{{ share.id }}">
+                            </div>
+                        </div>
+                        <div class="flex md:flex-col space-x-2 md:space-x-0 md:space-y-2">
+                            <button type="button" class="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-sm" onclick="copyLink('{{ share.id }}')">
+                                📋 Copy Link
+                            </button>
+                            <form method="POST" action="{{ url_for('revoke_share', share_id=share.id) }}" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                                <button type="submit" class="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-md text-sm w-full" onclick="return confirm('Are you sure you want to revoke this share link?')">
+                                    🗑️ Revoke
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <svg class="w-16 h-16 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                </svg>
+                <h3 class="text-xl font-medium mb-2">No active shares</h3>
+                <p class="text-gray-400 mb-6">You haven't shared any files yet</p>
+                <a href="{{ url_for('dashboard') }}" class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md">
+                    Go to My Files
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <footer class="mt-8 sm:mt-12 text-center text-gray-400 text-sm">
+            <p>{{ footer_text }} &copy; {{ now.year }}</p>
+        </footer>
+    </div>
+
+    <script>
+        function copyLink(shareId) {
+            const input = document.getElementById('share-url-' + shareId);
+            input.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        }
+    </script>
+</body>
+</html>

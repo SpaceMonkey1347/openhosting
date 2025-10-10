@@ -56,6 +56,9 @@
                             <a href="{{ url_for('admin_backups') }}" class="{% if request.endpoint == 'admin_backups' or request.endpoint == 'admin_create_backup' or request.endpoint == 'admin_backup_settings' or request.endpoint == 'admin_download_backup' or request.endpoint == 'admin_delete_backup' or request.endpoint == 'admin_restore_backup' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md">
                                 Backups
                             </a>
+                            <a href="{{ url_for('admin_shares') }}" class="{% if request.endpoint == 'admin_shares' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+                                Shared Links
+                            </a>
                             <div class="mt-2 px-2 py-2 text-sm font-medium text-gray-400 border-t border-dark-600 pt-2">
                                 Application Version: 1.1.1
                             </div>
@@ -101,6 +104,9 @@
                     </a>
                     <a href="{{ url_for('admin_backups') }}" class="{% if request.endpoint == 'admin_backups' or request.endpoint == 'admin_create_backup' or request.endpoint == 'admin_backup_settings' or request.endpoint == 'admin_download_backup' or request.endpoint == 'admin_delete_backup' or request.endpoint == 'admin_restore_backup' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 block px-3 py-2 rounded-md text-base font-medium">
                         Backups
+                    </a>
+                    <a href="{{ url_for('admin_shares') }}" class="{% if request.endpoint == 'admin_shares' %}bg-dark-700{% else %}hover:bg-dark-700{% endif %} text-gray-100 block px-3 py-2 rounded-md text-base font-medium">
+                        Shared Links
                     </a>
                     <div class="px-3 py-2 text-sm font-medium text-gray-400 border-t border-dark-600 mt-2 pt-2">
                         Application Version: 1.1.1
