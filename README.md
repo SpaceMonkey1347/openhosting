@@ -211,13 +211,32 @@ If you encounter any issues or have questions, please file an issue on the GitHu
   - Fixed various UI inconsistencies in dark mode
   
 ### Patch Notes – October 9, 2025
+
+**Security & Authentication Enhancements**:
 - Hardened secret key lifecycle: auto-generated per-instance key with secure file permissions, administrative rotation workflow, and improved default admin onboarding.
 - Enabled comprehensive CSRF protection using Flask-WTF and propagated hidden tokens across every form and Dropzone upload request.
 - Restored strict session handling with idle timeouts, secure cookie defaults, and consistent logout/session cleanup helpers.
 - Strengthened authentication flows by enforcing stronger credential validation during registration and first-run admin credential updates, including optional key regeneration.
 - Secured file uploads end-to-end by constraining storage paths, validating content length, enforcing quotas in classic/chunked uploads, and standardizing JSON error responses.
 - Added admin tooling to rotate the Flask secret key after backup restores and clarified UI messaging about the impact on active sessions.
----
+
+**File Sharing Feature**:
+- Added file sharing functionality with secure, shareable links using cryptographically secure tokens (32+ characters)
+- Implemented password protection for shared links with password hashing
+- Added expiration options (1 hour, 24 hours, 7 days, 30 days, or never)
+- Added download limits to control how many times a file can be downloaded
+- Created "My Shares" page for users to manage their active shares
+- Added share analytics with detailed access logs tracking downloads, views, and last access times
+- Implemented admin share management interface to view and manage all shares across the platform
+- Added rate limiting for password attempts (5 attempts per 15 minutes) to prevent brute force attacks
+- Added visual indicators for shared files in dashboard
+- Implemented automatic share revocation when files are deleted
+- Added share button to file cards with intuitive modal interfaces
+- Created share creation modal with configuration options
+- Added share success modal with copy link functionality
+- Implemented mobile-responsive share interfaces
+- Added "Shared Links" section to admin panel navigation
+- Added access logging for security monitoring and analytics
 
 ## Credits
 
@@ -228,6 +247,7 @@ Special thanks to the following contributors:
 ---
 
 Made by the OpenHosting Team 
+
 
 
 
