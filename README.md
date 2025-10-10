@@ -175,7 +175,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 If you encounter any issues or have questions, please file an issue on the GitHub repository.
 
-## Changelog
+## Changelog
+
 
 ### Version 1.1.1
 - Implemented UUIDs as primary keys for all database models
@@ -225,5 +226,6 @@ Special thanks to the following contributors:
 
 ---
 
-Made with â¤ï¸ by the OpenHosting Team 
+Made by the OpenHosting Team 
+
 
