@@ -725,6 +725,30 @@ def chunk_upload():
 
         # Full file path
         filepath = Path(filepath)
+        
+        # Check if file with same name already exists in database
+        existing_file = UserFile.query.filter_by(
+            user_id=current_user.id,
+            filename=filename
+        ).first()
+        
+        if existing_file:
+            # Delete old file from disk if it exists
+            if os.path.exists(existing_file.filepath):
+                try:
+                    os.remove(existing_file.filepath)
+                except OSError:
+                    pass
+            
+            # Delete associated shares
+            shares = FileShare.query.filter_by(file_id=existing_file.id).all()
+            for share in shares:
+                ShareAccessLog.query.filter_by(share_id=share.id).delete()
+                db.session.delete(share)
+            
+            # Delete the old database entry
+            db.session.delete(existing_file)
+            db.session.commit()
 
         # Save the file
         print(f"Saving file {filename} to {filepath}")
